@@ -29,9 +29,9 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed left-0 top-0 z-99999 w-full py-7 ${
+      className={`fixed left-0 top-0 z-[999] w-full py-7 ${
         stickyMenu
-          ? "bg-background !py-4 shadow transition duration-100 dark:bg-background"
+          ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 !py-4 shadow transition duration-100"
           : ""
       }`}
     >
@@ -101,7 +101,7 @@ const Header = () => {
         <div
           className={`invisible h-0 w-full items-center justify-between xl:visible xl:flex xl:h-auto xl:w-full ${
             navigationOpen &&
-            "navbar !visible mt-4 h-auto max-h-[400px] rounded-md bg-background p-7.5 shadow-solid-5 dark:bg-background xl:h-auto xl:p-0 xl:shadow-none xl:dark:bg-transparent"
+            "navbar !visible mt-4 h-auto max-h-[400px] rounded-md bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-7.5 shadow-solid-5 xl:h-auto xl:p-0 xl:shadow-none"
           }`}
         >
           <nav>
