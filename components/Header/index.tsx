@@ -31,9 +31,14 @@ import { Switch } from "@/components/ui/switch";
 const Header = () => {
   const [stickyMenu, setStickyMenu] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
@@ -42,6 +47,14 @@ const Header = () => {
       setStickyMenu(false);
     }
   };
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleStickyMenu);
+    
+    return () => {
+      window.removeEventListener("scroll", handleStickyMenu);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -60,10 +73,6 @@ const Header = () => {
     }
   };
 
-  useEffect(() => {
-    window.addEventListener("scroll", handleStickyMenu);
-  });
-
   return (
     <header
       className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-black/80 ${
@@ -80,8 +89,13 @@ const Header = () => {
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+              aria-label="Toggle theme"
             >
-              {theme === "dark" ? "🌞" : "🌙"}
+              {theme === "dark" ? (
+                <span aria-hidden="true">🌞</span>
+              ) : (
+                <span aria-hidden="true">🌙</span>
+              )}
             </button>
 
             <button
@@ -293,8 +307,13 @@ const Header = () => {
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+              aria-label="Toggle theme"
             >
-              {theme === "dark" ? "🌞" : "🌙"}
+              {theme === "dark" ? (
+                <span aria-hidden="true">🌞</span>
+              ) : (
+                <span aria-hidden="true">🌙</span>
+              )}
             </button>
 
             {user ? (
