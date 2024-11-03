@@ -8,6 +8,7 @@ import { Inter } from "next/font/google";
 import "../globals.css";
 import { useEffect, useState } from "react";
 import ToasterContext from "../context/ToastContext";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
             </>
           )}
         </ThemeProvider>
+        <Toaster position="top-center" />
       </body>
     </html>
   );

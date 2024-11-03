@@ -1,25 +1,46 @@
 "use client";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-
-import ThemeToggler from "./ThemeToggler";
-import menuData from "./menuData";
+import { useTheme } from "next-themes";
+import { useAuth } from "@/lib/firebase/hooks";
+import { logout } from "@/lib/firebase/auth";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { User, LogOut, Settings } from "lucide-react";
 
 const Header = () => {
-  const [navigationOpen, setNavigationOpen] = useState(false);
-  const [dropdownToggler, setDropdownToggler] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+  const router = useRouter();
 
-  const pathUrl = usePathname();
-
-  // Sticky menu
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
       setStickyMenu(true);
     } else {
       setStickyMenu(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      router.push('/auth/signin');
+    } catch (error) {
+      toast.error("Error logging out");
     }
   };
 
@@ -29,146 +50,179 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed left-0 top-0 z-[999] w-full py-7 ${
-        stickyMenu
-          ? "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 !py-4 shadow transition duration-100"
-          : ""
+      className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-black/80 ${
+        stickyMenu ? "shadow-sticky" : ""
       }`}
     >
       <div className="relative mx-auto max-w-c-1390 items-center justify-between px-4 md:px-8 xl:flex 2xl:px-0">
         <div className="flex w-full items-center justify-between xl:w-1/4">
-          <a href="/">
-            {/*
-            <Image
-              src="/images/logo/logo-dark.svg"
-              alt="logo"
-              width={119.03}
-              height={30}
-              className="hidden w-full dark:block"
-            />
-            <Image
-              src="/images/logo/logo-light.svg"
-              alt="logo"
-              width={119.03}
-              height={30}
-              className="w-full dark:hidden"
-            /> */}
-            <span className="text-2xl font-bold">A+ Essays</span>
-          </a>
+          <Link href="/" className="block w-full py-5 text-2xl font-bold">
+            A+ Essays
+          </Link>
 
-          {/* <!-- Hamburger Toggle BTN --> */}
-          <button
-            aria-label="hamburger Toggler"
-            className="block xl:hidden"
-            onClick={() => setNavigationOpen(!navigationOpen)}
-          >
-            <span className="relative block h-5.5 w-5.5 cursor-pointer">
-              <span className="absolute right-0 block h-full w-full">
-                <span
-                  className={`relative left-0 top-0 my-1 block h-0.5 rounded-sm bg-foreground delay-[0] duration-200 ease-in-out dark:bg-foreground ${
-                    !navigationOpen ? "!w-full delay-300" : "w-0"
-                  }`}
-                ></span>
-                <span
-                  className={`relative left-0 top-0 my-1 block h-0.5 rounded-sm bg-foreground delay-150 duration-200 ease-in-out dark:bg-foreground ${
-                    !navigationOpen ? "delay-400 !w-full" : "w-0"
-                  }`}
-                ></span>
-                <span
-                  className={`relative left-0 top-0 my-1 block h-0.5 rounded-sm bg-foreground delay-200 duration-200 ease-in-out dark:bg-foreground ${
-                    !navigationOpen ? "!w-full delay-500" : "w-0"
-                  }`}
-                ></span>
+          <div className="flex items-center gap-4 xl:hidden">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+            >
+              {theme === "dark" ? "🌞" : "🌙"}
+            </button>
+
+            <button
+              onClick={() => setNavigationOpen(!navigationOpen)}
+              className="xl:hidden"
+            >
+              <span className="relative block h-5.5 w-5.5 cursor-pointer">
+                <span className="absolute right-0 block h-full w-full">
+                  <span
+                    className={`relative left-0 top-0 my-1 block h-0.5 rounded-sm bg-black delay-[0] duration-200 ease-in-out dark:bg-white ${
+                      !navigationOpen ? "!w-full" : "top-2 !w-0"
+                    }`}
+                  ></span>
+                  <span
+                    className={`relative left-0 top-0 my-1 block h-0.5 rounded-sm bg-black delay-150 duration-200 ease-in-out dark:bg-white ${
+                      !navigationOpen ? "!w-full" : "!w-0"
+                    }`}
+                  ></span>
+                  <span
+                    className={`relative left-0 top-0 my-1 block h-0.5 rounded-sm bg-black delay-200 duration-200 ease-in-out dark:bg-white ${
+                      !navigationOpen ? "!w-full" : "!w-0"
+                    }`}
+                  ></span>
+                </span>
+                <span className="absolute right-0 h-full w-full rotate-45">
+                  <span
+                    className={`absolute left-2.5 top-0 block h-full w-0.5 rounded-sm bg-black delay-300 duration-200 ease-in-out dark:bg-white ${
+                      !navigationOpen ? "!h-0" : "!h-full"
+                    }`}
+                  ></span>
+                  <span
+                    className={`delay-400 absolute left-0 top-2.5 block h-0.5 w-full rounded-sm bg-black duration-200 ease-in-out dark:bg-white ${
+                      !navigationOpen ? "!w-0" : "!w-full"
+                    }`}
+                  ></span>
+                </span>
               </span>
-              <span className="du-block absolute right-0 h-full w-full rotate-45">
-                <span
-                  className={`absolute left-2.5 top-0 block h-full w-0.5 rounded-sm bg-foreground delay-300 duration-200 ease-in-out dark:bg-foreground ${
-                    !navigationOpen ? "!h-0 delay-[0]" : "h-full"
-                  }`}
-                ></span>
-                <span
-                  className={`delay-400 absolute left-0 top-2.5 block h-0.5 w-full rounded-sm bg-foreground duration-200 ease-in-out dark:bg-foreground ${
-                    !navigationOpen ? "!h-0 delay-200" : "h-0.5"
-                  }`}
-                ></span>
-              </span>
-            </span>
-          </button>
-          {/* <!-- Hamburger Toggle BTN --> */}
+            </button>
+          </div>
         </div>
 
-        {/* Nav Menu Start   */}
         <div
           className={`invisible h-0 w-full items-center justify-between xl:visible xl:flex xl:h-auto xl:w-full ${
             navigationOpen &&
-            "navbar !visible mt-4 h-auto max-h-[400px] rounded-md bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-7.5 shadow-solid-5 xl:h-auto xl:p-0 xl:shadow-none"
+            "navbar !visible mt-4 h-auto max-h-[400px] rounded-md bg-white p-7.5 shadow-solid-5 dark:bg-blacksection xl:h-auto xl:p-0 xl:shadow-none xl:dark:bg-transparent"
           }`}
         >
           <nav>
             <ul className="flex flex-col gap-5 xl:flex-row xl:items-center xl:gap-10">
-              {menuData.map((menuItem, key) => (
-                <li key={key} className={menuItem.submenu && "group relative"}>
-                  {menuItem.submenu ? (
-                    <>
-                      <button
-                        onClick={() => setDropdownToggler(!dropdownToggler)}
-                        className="flex cursor-pointer items-center justify-between gap-3 hover:text-primary"
-                      >
-                        {menuItem.title}
-                        <span>
-                          <svg
-                            className="h-3 w-3 cursor-pointer fill-waterloo group-hover:fill-primary"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 512 512"
-                          >
-                            <path d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z" />
-                          </svg>
-                        </span>
-                      </button>
-
-                      <ul
-                        className={`dropdown ${dropdownToggler ? "flex" : ""}`}
-                      >
-                        {menuItem.submenu.map((item, key) => (
-                          <li key={key} className="hover:text-primary">
-                            <Link href={item.path || "#"}>{item.title}</Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
+              {user ? (
+                <>
+                  <li>
                     <Link
-                      href={`${menuItem.path}`}
-                      className={
-                        pathUrl === menuItem.path
-                          ? "text-primary hover:text-primary"
-                          : "hover:text-primary"
-                      }
+                      href="/dashboard"
+                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
                     >
-                      {menuItem.title}
+                      Your Projects
                     </Link>
-                  )}
-                </li>
-              ))}
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => window.location.href = '/create-project'}
+                      className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-center text-sm font-medium text-white hover:bg-primary/90"
+                    >
+                      Create Project
+                    </button>
+                  </li>
+                  <li>
+                    <div className="text-sm font-medium text-black dark:text-white">
+                      Balance: $0.00
+                    </div>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link
+                      href="/"
+                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                    >
+                      Project Types we Cover
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      href="/dashboard" 
+                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                    >
+                      Academic Fields & Subjects
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      href="/" 
+                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                    >
+                      Reviews
+                    </Link>
+                  </li>
+                </>
+              )}
             </ul>
           </nav>
 
-          <div className="mt-7 flex items-center gap-6 xl:mt-0">
-            <ThemeToggler />
-
-            <Link
-              href="/signin"
-              className="text-regular font-medium text-foreground hover:text-primary"
+          <div className="flex items-center gap-6 mt-7 xl:mt-0">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
             >
-              Sign In
-            </Link>
+              {theme === "dark" ? "🌞" : "🌙"}
+            </button>
 
-            <Link
-              href="/signup"
-              className="flex items-center justify-center rounded-full bg-foreground px-7.5 py-2.5 text-regular text-background duration-300 ease-in-out hover:bg-primaryho dark:bg-white dark:text-black"
-            >
-              Sign Up
-            </Link>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.photoURL || ''} alt={user.email || ''} />
+                      <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-6">
+                <Link href="/auth/signin">
+                  <Button variant="ghost">Sign in</Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button>Sign up</Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
