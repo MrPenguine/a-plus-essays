@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import {  
+import { toast } from "sonner";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { signInWithEmail, signInWithGoogle, signInAsGuest } from "@/lib/firebase/auth";
-import { toast } from "sonner";
+
 const Signin = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);

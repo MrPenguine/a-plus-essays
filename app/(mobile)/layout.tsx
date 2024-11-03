@@ -1,19 +1,11 @@
-"use client";
-
-import React from "react";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import "@/app/globals.css";
 
-// Import components
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import ScrollToTop from "@/components/ScrollToTop";
-
 const inter = Inter({ subsets: ["latin"] });
 
-export default function PrivateLayout({
+export default function MobileLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -26,13 +18,10 @@ export default function PrivateLayout({
           attribute="class"
           defaultTheme="light"
         >
-          <Header />
           {children}
-          <Footer />
-          <ScrollToTop />
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>
     </html>
   );
-}
+} 

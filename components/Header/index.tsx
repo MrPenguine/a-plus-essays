@@ -17,7 +17,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Settings } from "lucide-react";
+import { User, LogOut, Settings, Paperclip, Calendar, Users } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 const Header = () => {
   const [stickyMenu, setStickyMenu] = useState(false);
@@ -41,6 +50,13 @@ const Header = () => {
       router.push('/auth/signin');
     } catch (error) {
       toast.error("Error logging out");
+    }
+  };
+
+  const handleCreateProject = () => {
+    if (window.innerWidth < 768) {
+      router.push('/chat');
+      return;
     }
   };
 
@@ -126,12 +142,115 @@ const Header = () => {
                     </Link>
                   </li>
                   <li>
-                    <button
-                      onClick={() => window.location.href = '/create-project'}
-                      className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-center text-sm font-medium text-white hover:bg-primary/90"
-                    >
-                      Create Project
-                    </button>
+                    <Popover>
+                      <PopoverTrigger className="w-full">
+                        <div 
+                          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-center text-sm font-medium text-white hover:bg-primary/90 cursor-pointer"
+                          onClick={handleCreateProject}
+                        >
+                          Create Project
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="w-[400px] p-6 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 shadow-lg" 
+                        sideOffset={5}
+                      >
+                        <div className="space-y-4">
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="title" className="text-sm font-medium text-black dark:text-white">
+                                Project title<span className="text-red-500">*</span>
+                              </Label>
+                              <Input 
+                                id="title" 
+                                placeholder="Enter project title"
+                                className="bg-white dark:bg-gray-900"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="description" className="text-sm font-medium text-black dark:text-white">
+                                Brief description
+                              </Label>
+                              <Textarea
+                                id="description"
+                                placeholder="I need..."
+                                className="min-h-[100px] bg-white dark:bg-gray-900"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="project-type" className="text-sm font-medium text-black dark:text-white">
+                                  Project type<span className="text-red-500">*</span>
+                                </Label>
+                                <Input 
+                                  id="project-type" 
+                                  placeholder="Enter project type"
+                                  className="bg-white dark:bg-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="subject-area" className="text-sm font-medium text-black dark:text-white">
+                                  Subject area<span className="text-red-500">*</span>
+                                </Label>
+                                <Input 
+                                  id="subject-area" 
+                                  placeholder="Enter subject area"
+                                  className="bg-white dark:bg-gray-900"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                              <button 
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
+                              >
+                                <Paperclip className="h-4 w-4" />
+                                Attach
+                              </button>
+                              <button 
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
+                              >
+                                <Calendar className="h-4 w-4" />
+                                Deadline
+                              </button>
+                              <button 
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
+                              >
+                                <Users className="h-4 w-4" />
+                                Invite an expert
+                              </button>
+                            </div>
+
+                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/50 p-3 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <Switch id="auto-match" />
+                                <Label htmlFor="auto-match" className="text-sm">Auto-match</Label>
+                              </div>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
+                                We will choose the best expert for you
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between pt-2">
+                            <button 
+                              className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
+                              onClick={() => router.back()}
+                            >
+                              Back
+                            </button>
+                            <button 
+                              onClick={() => router.push('/chat')}
+                              className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90"
+                            >
+                              Create
+                            </button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </li>
                   <li>
                     <div className="text-sm font-medium text-black dark:text-white">
@@ -198,13 +317,11 @@ const Header = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
