@@ -106,21 +106,19 @@ export default function ChatPage() {
   }, [messageQueue, showTyping]);
 
   const handleGoAhead = () => {
-    // Remove actions from previous messages
     setDisplayedMessages(prev => prev.map(msg => ({ ...msg, showActions: false })));
     
-    // Add user response
-    const userResponse = {
+    const userResponse: Message = {
       id: Date.now(),
       text: "Go ahead!",
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
-    const expertQuestion = {
+    const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "What's the subject area of your project? Pick the right discipline from the list below. 📚\n\nSelect \"Other\" to show your project to every expert. It also will help us find out which subject is missing to add it later on.",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: 'subject'
@@ -136,14 +134,14 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: subject,
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
     const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "What's your level of education? This helps us match you with the right expert.",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: 'educationLevel'
@@ -159,14 +157,14 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: level,
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
     const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "Would you like to specify the length in pages or words?\n(1 page ≈ 275 words)",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: 'countType'
@@ -182,7 +180,7 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: type === 'pages' ? 'Pages' : 'Words',
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
@@ -191,7 +189,7 @@ export default function ChatPage() {
       text: type === 'pages' 
         ? "How many pages do you need?\nMinimum 1 page (275 words)"
         : "Cool. 😎 How many words do you need?\nAt least 275 words per project.",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: type === 'pages' ? 'pageCount' : 'wordCount'
@@ -207,14 +205,14 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: `${count} ${count === 1 ? 'page' : 'pages'} (${count * 275} words)`,
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
     const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "When do you need it? ⏰ Set a deadline for your work a bit prior to the real deadline, in case you'd need to edit some details.",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: 'deadline'
@@ -230,14 +228,14 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: `${count} words`,
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
     const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "When do you need it? ⏰ Set a deadline for your work a bit prior to the real deadline, in case you'd need to edit some details.",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: 'deadline'
@@ -458,14 +456,14 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: format(selectedDate, "PPP 'at' p"),
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
     const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "Thanks! Can you describe project briefly?",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date(),
       showActions: true,
       type: 'description'
@@ -482,14 +480,14 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: descriptionForm.description,
-      sender: 'user',
+      sender: 'user' as const,
       timestamp: new Date()
     };
 
     const expertResponse: Message = {
       id: Date.now() + 1,
       text: "Great! We're on it. Let me redirect you to the payment page.",
-      sender: 'expert',
+      sender: 'expert' as const,
       timestamp: new Date()
     };
 
