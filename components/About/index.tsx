@@ -33,12 +33,14 @@ const About = () => {
                 alt="About"
                 className="dark:hidden"
                 fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
               <Image
                 src="/images/about/about-dark-01.png"
                 alt="About"
                 className="hidden dark:block"
                 fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             </motion.div>
             <motion.div

@@ -145,6 +145,9 @@ module.exports = {
         'solid-12': '0px 2px 10px rgba(0, 0, 0, 0.05)',
         'solid-13': '0px 2px 19px rgba(0, 0, 0, 0.05)',
       },
+      animation: {
+        'slide-up': 'slide-up 0.3s ease-out',
+      },
     }
   },
   plugins: [require("tailwindcss-animate")],

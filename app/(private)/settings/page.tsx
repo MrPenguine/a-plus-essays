@@ -7,13 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -21,7 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { EmailAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase/config"; // Import the initialized auth instance
+import { auth } from "@/lib/firebase/config";
 import { countries } from 'countries-list';
 
 // Convert countries object to array and sort by name
@@ -48,6 +41,16 @@ export default function SettingsPage() {
       setHasPassword(hasPasswordProvider);
     }
   }, [user]);
+
+  // Get avatar details
+  const getAvatarDetails = () => {
+    if (!user) return { image: 'https://github.com/shadcn.png', fallback: 'CN' };
+
+    return {
+      image: 'https://github.com/shadcn.png', // Always use default avatar
+      fallback: 'CN'
+    };
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     toast.info("Photo upload functionality coming soon");
@@ -80,8 +83,8 @@ export default function SettingsPage() {
                 <Label className="text-sm text-muted-foreground mb-2 block">Profile Picture</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={user?.photoURL || ''} alt={user?.email || ''} />
-                    <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={getAvatarDetails().image} alt="Profile" />
+                    <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
                   </Avatar>
                   <div>
                     <Button 
@@ -108,7 +111,7 @@ export default function SettingsPage() {
                 <Label htmlFor="email" className="text-sm text-muted-foreground">Email*</Label>
                 <Input 
                   id="email" 
-                  value={user?.email || ''} 
+                  value={user?.email || 'New User'} 
                   disabled 
                   type="email"
                 />
@@ -118,22 +121,18 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Country</Label>
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background/100 backdrop-blur-lg border-stroke max-h-[300px]">
-                      {countryList.map((country) => (
-                        <SelectItem 
-                          key={country.value} 
-                          value={country.value}
-                          className="hover:bg-muted"
-                        >
-                          {country.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    className="w-full mt-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Select country</option>
+                    {countryList.map((country) => (
+                      <option key={country.value} value={country.value}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">City</Label>

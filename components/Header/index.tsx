@@ -73,6 +73,16 @@ const Header = () => {
     }
   };
 
+  const getAvatarDetails = () => {
+    if (!user) return { image: 'https://github.com/shadcn.png', fallback: 'CN', label: 'Guest' };
+
+    return {
+      image: 'https://github.com/shadcn.png',
+      fallback: 'CN',
+      label: 'New User'
+    };
+  };
+
   return (
     <header
       className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-black/80 ${
@@ -321,17 +331,19 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.photoURL || ''} alt={user.email || ''} />
-                      <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage src="https://github.com/shadcn.png" alt="Profile" />
+                      <AvatarFallback>CN</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                      <p className="text-sm font-medium leading-none">
+                        {user.displayName || 'New User'}
+                      </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
+                        New User
                       </p>
                     </div>
                   </DropdownMenuLabel>

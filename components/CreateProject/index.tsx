@@ -1,14 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,24 +13,43 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Paperclip } from "lucide-react";
+import { Paperclip, X } from "lucide-react";
 
-export default function CreateProject() {
+interface CreateProjectProps {
+  initialData?: {
+    assignmentType: string;
+    projectTitle: string;
+  };
+  onClose?: () => void;
+}
+
+export default function CreateProject({ initialData, onClose }: CreateProjectProps) {
   const [autoMatch, setAutoMatch] = useState(false);
 
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button>Create Project</Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[800px]">
-        <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
-          <DialogDescription>
-            Fill in the project details to get started
-          </DialogDescription>
-        </DialogHeader>
+  // Pre-fill form with initial data if provided
+  useEffect(() => {
+    if (initialData) {
+      // Set your form state here with initialData
+    }
+  }, [initialData]);
 
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between p-6 border-b">
+        <h2 className="text-lg font-semibold">Create New Project</h2>
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="rounded-full"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-6">
           {/* Project Title */}
           <div>
@@ -47,6 +58,7 @@ export default function CreateProject() {
               id="title" 
               placeholder="William Shakespeare's short biography"
               className="mt-1.5"
+              defaultValue={initialData?.projectTitle}
             />
           </div>
 
@@ -64,7 +76,7 @@ export default function CreateProject() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Project type*</Label>
-              <Select>
+              <Select defaultValue={initialData?.assignmentType}>
                 <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Enter project type" />
                 </SelectTrigger>
@@ -115,14 +127,22 @@ export default function CreateProject() {
           <div className="text-sm text-muted-foreground">
             We will choose the best expert for you
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4 pt-4">
-            <Button variant="outline">Back</Button>
-            <Button>Create</Button>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      <div className="p-6 border-t">
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => {
+            // Handle create logic
+            onClose?.();
+          }}>
+            Create
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 } 
