@@ -19,25 +19,30 @@ export default function MobileLayout({
     setMounted(true);
   }, []);
 
+  // Return minimal layout during SSR
   if (!mounted) {
     return (
       <html lang="en">
         <body className={inter.className}>
-          {children}
+          <div className="min-h-screen bg-background">
+            {children}
+          </div>
         </body>
       </html>
     );
   }
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`dark:bg-black ${inter.className}`} suppressHydrationWarning>
+    <html lang="en">
+      <body className={`${inter.className} dark:bg-black`}>
         <ThemeProvider
           enableSystem={false}
           attribute="class"
           defaultTheme="light"
         >
-          {children}
+          <div className="min-h-screen bg-background">
+            {children}
+          </div>
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>

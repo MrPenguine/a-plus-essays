@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { Paperclip } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { dbService } from "@/lib/firebase/db-service";
+import { auth } from "@/lib/firebase/config";
 
 type Message = {
   id: number;
@@ -473,7 +475,7 @@ export default function ChatPage() {
     setMessageQueue(prev => [...prev, expertQuestion]);
   };
 
-  const handleDescriptionSubmit = () => {
+  const handleDescriptionSubmit = async () => {
     setShowDescribeModal(false);
     
     // Add user's description as a message
@@ -486,29 +488,66 @@ export default function ChatPage() {
 
     const expertResponse: Message = {
       id: Date.now() + 1,
-      text: "Great! We're on it. Let me redirect you to the payment page.",
+      text: "Great! We're saving your order details...",
       sender: 'expert' as const,
       timestamp: new Date()
     };
 
-    setDisplayedMessages(prev => [...prev, userResponse]);
-    setMessageQueue(prev => [...prev, expertResponse]);
+    setDisplayedMessages(prev => [...prev, userResponse, expertResponse]);
 
-    // Get all the collected data from the chat
-    const params = new URLSearchParams({
-      title: searchParams.get('title') || '',
-      type: searchParams.get('type') || '',
-      subject: descriptionForm.subject,
-      level: displayedMessages.find(m => m.sender === 'user' && m.text.includes('School'))?.text || '',
-      words: displayedMessages.find(m => m.sender === 'user' && m.text.includes('words'))?.text || '',
-      deadline: displayedMessages.find(m => m.sender === 'user' && m.text.includes('at'))?.text || '',
-      description: descriptionForm.description
-    });
+    try {
+      // Get all the data from messages
+      const educationLevel = displayedMessages.find(m => 
+        m.sender === 'user' && 
+        (m.text.includes('School') || m.text.includes('Undergraduate') || m.text.includes('Masters') || m.text.includes('PhD'))
+      )?.text || 'Undergraduate';
 
-    // Redirect after a short delay
-    setTimeout(() => {
-      router.push(`/payment-detail?${params.toString()}`);
-    }, 2000);
+      const pagesMatch = displayedMessages.find(m => 
+        m.sender === 'user' && m.text.includes('page'))?.text.match(/(\d+)\s*page/);
+      const pages = pagesMatch ? parseInt(pagesMatch[1]) : 1;
+
+      const orderData = {
+        assignment_type: searchParams.get('type') || '',
+        title: searchParams.get('title') || '',
+        description: descriptionForm.description,
+        subject: descriptionForm.subject,
+        level: educationLevel,
+        pages,
+        wordcount: pages * 275,
+        deadline: displayedMessages.find(m => m.sender === 'user' && m.text.includes('at'))?.text || '',
+        file_links: [],
+        userid: auth.currentUser?.uid || '',
+      };
+
+      // Save to Firestore
+      const orderId = await dbService.createOrder(orderData);
+
+      // Add success message
+      const successResponse: Message = {
+        id: Date.now() + 2,
+        text: "Order saved successfully! Redirecting to payment...",
+        sender: 'expert' as const,
+        timestamp: new Date()
+      };
+
+      setDisplayedMessages(prev => [...prev, successResponse]);
+
+      // Redirect after a short delay
+      setTimeout(() => {
+        const params = new URLSearchParams();
+        params.append('orderId', orderId);
+        Object.entries(orderData).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            params.append(key, value.toString());
+          }
+        });
+        router.push(`/payment-detail?${params.toString()}`);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error saving order:', error);
+      toast.error('Failed to save order details');
+    }
   };
 
   return (

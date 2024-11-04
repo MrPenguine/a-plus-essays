@@ -1,6 +1,5 @@
 import { auth } from "./config";
 import { signInAnonymously, updateProfile } from "firebase/auth";
-import { dbService } from "./db-service";
 
 export const handleProjectCreation = async (formData: {
   assignmentType: string;
@@ -10,74 +9,39 @@ export const handleProjectCreation = async (formData: {
   try {
     let currentUser = auth.currentUser;
 
-    // If no user is logged in but email is provided
     if (!currentUser && formData.email) {
-      try {
-        // Check if user exists
-        const userExists = await dbService.checkUserExists(formData.email);
-        
-        if (userExists) {
-          return {
-            success: false,
-            error: 'User already exists. Please login.',
-            redirect: '/auth/signin'
-          };
-        }
+      const anonUser = await signInAnonymously(auth);
+      currentUser = anonUser.user;
+      
+      await updateProfile(currentUser, {
+        displayName: formData.email,
+        photoURL: `mailto:${formData.email}`
+      });
 
-        // Create anonymous user
-        const anonUser = await signInAnonymously(auth);
-        currentUser = anonUser.user;
-        
-        // Update profile with email
-        await updateProfile(currentUser, {
-          displayName: formData.email,
-          photoURL: `mailto:${formData.email}`
-        });
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          formData,
+          userId: currentUser.uid,
+          userEmail: formData.email
+        })
+      });
 
-        // Create user in database
-        await dbService.createUser({
-          email: formData.email,
-          name: '',
-          userid: currentUser.uid,
-          balance: 0,
-          createdAt: new Date().toISOString(),
-          isAnonymous: true
-        });
-
-        console.log('User created:', {
-          uid: currentUser.uid,
-          email: formData.email,
-          isAnonymous: currentUser.isAnonymous
-        });
-      } catch (authError) {
-        console.error("Authentication error:", authError);
-        return {
-          success: false,
-          error: 'Failed to create user account'
-        };
+      const result = await response.json();
+      if (!result.success) {
+        return result;
       }
     }
 
-    // Create project data
-    const projectData = {
-      assignmentType: formData.assignmentType,
-      projectTitle: formData.projectTitle,
-      userEmail: currentUser?.photoURL?.replace('mailto:', '') || formData.email || '',
-      userId: currentUser?.uid || 'guest',
-      createdAt: new Date().toISOString(),
-      status: 'new'
-    };
-
-    // Create project in database
-    await dbService.createProject(projectData);
-
     return {
       success: true,
-      user: currentUser,
-      projectData
+      user: currentUser
     };
   } catch (error) {
-    console.error("Error in project creation:", error);
+    console.error("Error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred"

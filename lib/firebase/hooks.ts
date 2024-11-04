@@ -2,21 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { onAuthStateChangedHelper } from './auth';
 import { auth } from './config';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChangedHelper((user) => {
-      setUser(user);
-      setLoading(false);
-    });
+    const unsubscribe = auth.onAuthStateChanged(
+      (user) => {
+        setUser(user);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Auth error:", error);
+        setError(error);
+        setLoading(false);
+      }
+    );
 
-    return unsubscribe;
+    // Cleanup subscription
+    return () => unsubscribe();
   }, []);
 
-  return { user, loading };
+  return { user, loading, error };
 } 
