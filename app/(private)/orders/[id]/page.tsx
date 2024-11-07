@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, MessageCircle, X, ChevronDown, ChevronUp } from "lucide-react";
 import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useAuth } from "@/lib/firebase/hooks";
 import { dbService } from "@/lib/firebase/db-service";
@@ -159,25 +159,26 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [activeFileTab, setActiveFileTab] = useState<'client' | 'tutor'>('client');
-  const timeLeft = useCountdown(order?.deadline || '');
+  const [mounted, setMounted] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
+  // Handle mounting state
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch order data
   useEffect(() => {
     const fetchOrder = async () => {
       if (!user || !params.id) return;
 
       try {
         const orderData = await dbService.getOrder(params.id as string);
-        
-        // Type assertion to match the interface
-        const typedOrderData = orderData as OrderDetail;
-        
-        // Check if the order belongs to the current user
-        if (typedOrderData.userid !== user.uid) {
+        if (orderData.userid !== user.uid) {
           setError("You don't have permission to view this order");
           return;
         }
-
-        setOrder(typedOrderData);
+        setOrder(orderData as OrderDetail);
       } catch (error) {
         console.error("Error fetching order:", error);
         setError("Failed to load order details");
@@ -186,10 +187,15 @@ export default function OrderDetailPage() {
       }
     };
 
-    if (user) {
+    if (user && mounted) {
       fetchOrder();
     }
-  }, [params.id, user]);
+  }, [params.id, user, mounted]);
+
+  // Don't render anything until mounted
+  if (!mounted) {
+    return null;
+  }
 
   if (authLoading || loading) {
     return <LoadingState />;
@@ -303,176 +309,199 @@ export default function OrderDetailPage() {
           Back to orders
         </button>
 
-        {/* Order Header with Chat Button */}
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex-1">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold">{order?.title}</h1>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowChat(true)}
-                  className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full px-4"
-                >
-                  <span className="text-sm">Open Chat</span>
-                  <MessageCircle className="h-5 w-5" />
-                </Button>
-                <Badge variant="outline" className={getStatusColor(order?.status || '')}>
-                  {order?.status}
-                </Badge>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
+        {/* Modified Order Header - With chat button */}
+        <div className="flex flex-col space-y-2 mb-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">{order?.title}</h1>
+            <Button
+              onClick={() => setShowChat(true)}
+              className="flex items-center gap-2 shadow-lg rounded-full px-4 bg-primary hover:bg-primary/90 text-white dark:text-black"
+            >
+              <span className="text-sm">Open Chat</span>
+              <MessageCircle className="h-5 w-5" />
+            </Button>
+          </div>
+          <div className="flex items-center">
+            <p className="text-sm text-muted-foreground">
               Order #{order?.id.slice(0, 8)}
             </p>
           </div>
         </div>
 
-        {/* Order Details Cards - Rest remains the same */}
-        <div className="space-y-6">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Assignment Details</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Type</p>
-                <p className="font-medium">{order?.assignment_type}</p>
+        {/* Status and Payment Section */}
+        <Card className="p-6 mb-6">
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Status:</span>
+                <Badge variant="outline" className={getStatusColor(order?.status || '')}>
+                  {order?.status}
+                </Badge>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Subject</p>
-                <p className="font-medium">{order?.subject}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pages</p>
-                <p className="font-medium">{order?.pages}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Words</p>
-                <p className="font-medium">{order?.wordcount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Level</p>
-                <p className="font-medium">{order?.level}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Price</p>
-                <p className="font-medium">${order?.price.toFixed(2)}</p>
-              </div>
-
-              {/* Deadline Section - Simplified */}
-              <div className="col-span-2 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Deadline</p>
-                <p className="font-medium">
-                  {order.deadline}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Description</h2>
-            <p className="text-muted-foreground whitespace-pre-wrap">
-              {order?.description}
-            </p>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Files</h2>
-            <div className="space-y-4">
-              {/* File Tabs */}
-              <div className="flex gap-4 border-b">
-                <button
-                  onClick={() => setActiveFileTab('client')}
-                  className={`pb-2 px-4 ${
-                    activeFileTab === 'client'
-                      ? 'border-b-2 border-primary font-medium'
-                      : 'text-muted-foreground'
-                  }`}
+              {order.status === 'pending' && (
+                <Button
+                  onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
+                  className="bg-primary hover:bg-primary/90 text-white dark:text-black"
                 >
-                  Client Documents
-                </button>
-                <button
-                  onClick={() => setActiveFileTab('tutor')}
-                  className={`pb-2 px-4 ${
-                    activeFileTab === 'tutor'
-                      ? 'border-b-2 border-primary font-medium'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  Tutor Documents
-                </button>
-              </div>
-
-              {/* File Display Area */}
-              <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                {activeFileTab === 'client' ? (
-                  order?.file_links && order.file_links.length > 0 ? (
-                    <div className="space-y-2">
-                      {order.file_links.map((file, index) => (
-                        <a
-                          key={index}
-                          href={file}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                        >
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                          <span>Client Document {index + 1}</span>
-                        </a>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground">No client documents uploaded yet</p>
-                  )
-                ) : (
-                  <p className="text-center text-muted-foreground">No tutor documents available yet</p>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Timeline</h2>
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Created</p>
-                <p className="font-medium">
-                  {order.createdAt}
-                </p>
-              </div>
-              {order.updatedAt && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Last Updated</p>
-                  <p className="font-medium">
-                    {order.updatedAt}
-                  </p>
-                </div>
+                  Proceed to payment
+                </Button>
               )}
             </div>
-          </Card>
-        </div>
-      </div>
+          </div>
+        </Card>
 
-      {/* Fixed Chat Button for Mobile */}
-      <div className="lg:hidden fixed bottom-6 right-6">
-        <Button
-          onClick={() => setShowChat(true)}
-          className="flex items-center gap-2 shadow-lg rounded-full px-4 bg-primary hover:bg-primary/90"
-        >
-          <span className="text-sm text-white">Open Chat</span>
-          <MessageCircle className="h-5 w-5 text-white" />
-        </Button>
+        <Card className="p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Assignment Details</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Type</p>
+              <p className="font-medium">{order?.assignment_type}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Subject</p>
+              <p className="font-medium">{order?.subject}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Pages</p>
+              <p className="font-medium">{order?.pages}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Words</p>
+              <p className="font-medium">{order?.wordcount}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Level</p>
+              <p className="font-medium">{order?.level}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Price</p>
+              <p className="font-medium">${order?.price.toFixed(2)}</p>
+            </div>
+
+            {/* Deadline Section - Simplified */}
+            <div className="col-span-2 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-2">Deadline</p>
+              <p className="font-medium">
+                {order.deadline}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Description</h2>
+          <div>
+            <p className={`text-muted-foreground whitespace-pre-wrap ${
+              !showFullDescription ? 'line-clamp-2' : ''
+            }`}>
+              {order?.description || 'No description provided'}
+            </p>
+            {order?.description && order.description.split('\n').length > 2 && (
+              <Button
+                variant="ghost"
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                className="mt-2 text-primary hover:text-primary/90"
+              >
+                {showFullDescription ? (
+                  <div className="flex items-center gap-2">
+                    Show Less <ChevronUp className="h-4 w-4" />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    Show More <ChevronDown className="h-4 w-4" />
+                  </div>
+                )}
+              </Button>
+            )}
+          </div>
+        </Card>
+
+        <Card className="p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Files</h2>
+          <div className="space-y-4">
+            {/* File Tabs */}
+            <div className="flex gap-4 border-b">
+              <button
+                onClick={() => setActiveFileTab('client')}
+                className={`pb-2 px-4 ${
+                  activeFileTab === 'client'
+                    ? 'border-b-2 border-primary font-medium'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                Client Documents
+              </button>
+              <button
+                onClick={() => setActiveFileTab('tutor')}
+                className={`pb-2 px-4 ${
+                  activeFileTab === 'tutor'
+                    ? 'border-b-2 border-primary font-medium'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                Tutor Documents
+              </button>
+            </div>
+
+            {/* File Display Area */}
+            <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              {activeFileTab === 'client' ? (
+                order?.file_links && order.file_links.length > 0 ? (
+                  <div className="space-y-2">
+                    {order.file_links.map((file, index) => (
+                      <a
+                        key={index}
+                        href={file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <span>Client Document {index + 1}</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground">No client documents uploaded yet</p>
+                )
+              ) : (
+                <p className="text-center text-muted-foreground">No tutor documents available yet</p>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Timeline</h2>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Created</p>
+              <p className="font-medium">
+                {order.createdAt}
+              </p>
+            </div>
+            {order.updatedAt && (
+              <div>
+                <p className="text-sm text-muted-foreground">Last Updated</p>
+                <p className="font-medium">
+                  {order.updatedAt}
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   );

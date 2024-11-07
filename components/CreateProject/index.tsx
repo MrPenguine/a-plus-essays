@@ -32,6 +32,7 @@ interface CreateProjectProps {
     projectTitle: string;
   };
   onClose?: () => void;
+  onSubmit?: () => void;
 }
 
 const EDUCATION_LEVELS = [
@@ -53,7 +54,7 @@ const SUBJECTS = [
 const selectStyles = "bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800";
 const calendarStyles = "bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800";
 
-export default function CreateProject({ initialData, onClose }: CreateProjectProps) {
+export default function CreateProject({ initialData, onClose, onSubmit }: CreateProjectProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [countType, setCountType] = useState<'pages' | 'words'>('pages');
@@ -106,32 +107,18 @@ export default function CreateProject({ initialData, onClose }: CreateProjectPro
       const pages = countType === 'pages' ? formData.pages : Math.ceil(formData.words / 275);
       const wordCount = countType === 'words' ? formData.words : formData.pages * 275;
 
-      // Ensure we have a valid date string
-      let deadlineStr = formData.deadline;
-      if (!deadlineStr) {
-        toast.error("Please select a deadline");
-        return;
-      }
-
-      // Create a valid date object
-      const deadlineDate = new Date(deadlineStr);
-      if (isNaN(deadlineDate.getTime())) {
-        toast.error("Invalid deadline date");
-        return;
-      }
-
-      // Format the deadline as a simple string
-      const formattedDeadline = format(deadlineDate, "yyyy-MM-dd'T'HH:mm:ss");
+      // Ensure description is properly trimmed but preserves line breaks
+      const cleanDescription = formData.description.trim();
 
       const orderData = {
         assignment_type: formData.assignmentType,
         title: formData.title,
-        description: formData.description,
+        description: cleanDescription, // Use cleaned description
         subject: formData.subject,
         level: formData.educationLevel,
         pages,
         wordcount: wordCount,
-        deadline: formattedDeadline, // Use ISO string format
+        deadline: formData.deadline,
         file_links: [],
         userid: auth.currentUser?.uid || '',
       };
@@ -145,9 +132,12 @@ export default function CreateProject({ initialData, onClose }: CreateProjectPro
         type: formData.assignmentType,
         level: formData.educationLevel,
         pages: pages.toString(),
-        deadline: formattedDeadline // Pass ISO string to URL
+        deadline: formData.deadline // Pass ISO string to URL
       });
 
+      // Call onSubmit callback if provided
+      onSubmit?.();
+      
       router.push(`/payment-detail?${params.toString()}`);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -317,10 +307,13 @@ export default function CreateProject({ initialData, onClose }: CreateProjectPro
       <div>
         <Label>Description</Label>
         <Textarea 
-          placeholder="Describe your project"
+          placeholder="Describe your project requirements in detail..."
           value={formData.description}
-          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-          className="mt-1.5 min-h-[100px]"
+          onChange={(e) => setFormData(prev => ({ 
+            ...prev, 
+            description: e.target.value 
+          }))}
+          className="mt-1.5 min-h-[100px] resize-y"
         />
       </div>
 

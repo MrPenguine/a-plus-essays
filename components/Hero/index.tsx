@@ -13,14 +13,21 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/firebase/hooks";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CreateProject from "@/components/CreateProject";
 import { handleProjectCreation } from "@/lib/firebase/project-service";
 import { toast } from "sonner";
+import { auth } from "@/lib/firebase/config";
+import { dbService } from "@/lib/firebase/db-service";
+import { collection, query, where, updateDoc, doc, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
+import { signInAnonymously } from "firebase/auth";
 
 const Hero = () => {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get('code');
   const [formData, setFormData] = useState({
     assignmentType: "",
     projectTitle: "",
@@ -45,17 +52,46 @@ const Hero = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Validate form
     if (!formData.assignmentType || !formData.projectTitle || (!user && !formData.email)) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     try {
+      // Create anonymous user
+      const anonUser = await signInAnonymously(auth);
+      const userId = anonUser.user.uid;
+
+      // Create user in database
+      await dbService.createUser({
+        userid: userId,
+        email: formData.email || '',
+        name: '',
+        balance: 0,
+        createdAt: new Date().toISOString(),
+        isAnonymous: true
+      });
+
+      // If there's a referral code, create referral record
+      if (referralCode) {
+        // Find the referral record and update it with the new user's ID
+        const referralsRef = collection(db, 'referrals');
+        const q = query(referralsRef, where('referralCode', '==', referralCode));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const referralDoc = snapshot.docs[0];
+          await updateDoc(doc(referralsRef, referralDoc.id), {
+            referred_uid: userId,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Create project
       const result = await handleProjectCreation(formData);
       
       if (result.success) {
-        // Check if mobile
         if (window.innerWidth < 768) {
           const searchParams = new URLSearchParams({
             title: formData.projectTitle,
@@ -63,7 +99,6 @@ const Hero = () => {
           });
           router.push(`/chat?${searchParams.toString()}`);
         } else {
-          // Desktop: go to create project page
           const searchParams = new URLSearchParams({
             title: formData.projectTitle,
             type: formData.assignmentType
@@ -71,15 +106,20 @@ const Hero = () => {
           router.push(`/createproject?${searchParams.toString()}`);
         }
       } else {
-        if (result.redirect) {
-          toast.error(result.error || "Failed to process request");
-          router.push(result.redirect);
-        } else {
-          toast.error(result.error || "Failed to process request");
-        }
+        toast.error(result.error || "Failed to process request");
       }
     } catch (error) {
+      console.error("Error processing submission:", error);
       toast.error("An unexpected error occurred");
+    }
+  };
+
+  const handleGetStarted = () => {
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      router.push('/chat');
+    } else {
+      router.push('/createproject');
     }
   };
 
@@ -107,9 +147,13 @@ const Hero = () => {
         <div className="w-full max-w-md mx-auto lg:ml-auto order-1 lg:order-2">
           <Card className="bg-card border shadow-lg">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-xl lg:text-2xl">Get Started</CardTitle>
+              <CardTitle className="text-xl lg:text-2xl">
+                {referralCode ? "Get Started with 20% Off" : "Get Started"}
+              </CardTitle>
               <CardDescription>
-                Fill in the details to get help with your assignment
+                {referralCode 
+                  ? "Create your first order to claim your 20% discount"
+                  : "Fill in the details to get help with your assignment"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -159,15 +203,14 @@ const Hero = () => {
                   </div>
                 )}
 
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary text-primary-foreground"
-                >
-                  Get Help Now
+                <Button type="submit" className="w-full">
+                  {referralCode ? "Get Started with 20% Off" : "Get Started"}
                 </Button>
 
                 <p className="text-center text-sm text-muted-foreground">
-                  Writers are ready to help you now
+                  {referralCode 
+                    ? "Your friend invited you - 20% discount will be applied"
+                    : "Writers are ready to help you now"}
                 </p>
               </form>
             </CardContent>

@@ -41,9 +41,17 @@ type Message = {
 
 // Add this type for the form data
 type ProjectDescriptionForm = {
-  subject: string;
   description: string;
   files?: File[];
+};
+
+// Add this constant at the top with other constants
+const WORDS_PER_PAGE = 275;
+const PRICE_PER_PAGE = {
+  'High School': 8,
+  'Undergraduate': 10,
+  'Masters': 14,
+  'PhD': 15
 };
 
 export default function ChatPage() {
@@ -58,7 +66,6 @@ export default function ChatPage() {
   const [showDescribeModal, setShowDescribeModal] = useState(false);
   const [projectDescription, setProjectDescription] = useState('');
   const [descriptionForm, setDescriptionForm] = useState<ProjectDescriptionForm>({
-    subject: '',
     description: ''
   });
 
@@ -227,17 +234,20 @@ export default function ChatPage() {
   const handleWordCount = (count: number) => {
     setDisplayedMessages(prev => prev.map(msg => ({ ...msg, showActions: false })));
     
+    // Calculate number of pages from word count
+    const pages = Math.ceil(count / WORDS_PER_PAGE);
+    
     const userResponse: Message = {
       id: Date.now(),
-      text: `${count} words`,
-      sender: 'user' as const,
+      text: `${count} words (${pages} ${pages === 1 ? 'page' : 'pages'})`,
+      sender: 'user',
       timestamp: new Date()
     };
 
     const expertQuestion: Message = {
       id: Date.now() + 1,
       text: "When do you need it? ⏰ Set a deadline for your work a bit prior to the real deadline, in case you'd need to edit some details.",
-      sender: 'expert' as const,
+      sender: 'expert',
       timestamp: new Date(),
       showActions: true,
       type: 'deadline'
@@ -496,27 +506,43 @@ export default function ChatPage() {
     setDisplayedMessages(prev => [...prev, userResponse, expertResponse]);
 
     try {
-      // Get all the data from messages
+      // Get education level from messages
       const educationLevel = displayedMessages.find(m => 
         m.sender === 'user' && 
         (m.text.includes('School') || m.text.includes('Undergraduate') || m.text.includes('Masters') || m.text.includes('PhD'))
       )?.text || 'Undergraduate';
 
-      const pagesMatch = displayedMessages.find(m => 
+      // Get pages/words from messages
+      const wordMatch = displayedMessages.find(m => 
+        m.sender === 'user' && m.text.includes('words'))?.text.match(/(\d+)\s*words/);
+      const pageMatch = displayedMessages.find(m => 
         m.sender === 'user' && m.text.includes('page'))?.text.match(/(\d+)\s*page/);
-      const pages = pagesMatch ? parseInt(pagesMatch[1]) : 1;
+
+      // Calculate pages and total price
+      let pages;
+      if (wordMatch) {
+        const words = parseInt(wordMatch[1]);
+        pages = Math.ceil(words / WORDS_PER_PAGE);
+      } else if (pageMatch) {
+        pages = parseInt(pageMatch[1]);
+      } else {
+        pages = 1;
+      }
+
+      const pricePerPage = PRICE_PER_PAGE[educationLevel as keyof typeof PRICE_PER_PAGE] || 10;
+      const totalPrice = pages * pricePerPage;
 
       const orderData = {
         assignment_type: searchParams.get('type') || '',
         title: searchParams.get('title') || '',
         description: descriptionForm.description,
-        subject: descriptionForm.subject,
         level: educationLevel,
         pages,
-        wordcount: pages * 275,
+        wordcount: pages * WORDS_PER_PAGE,
         deadline: displayedMessages.find(m => m.sender === 'user' && m.text.includes('at'))?.text || '',
         file_links: [],
         userid: auth.currentUser?.uid || '',
+        price: totalPrice
       };
 
       // Save to Firestore
@@ -766,15 +792,6 @@ export default function ChatPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Project title"
-              value={descriptionForm.subject}
-              onChange={(e) => setDescriptionForm(prev => ({
-                ...prev,
-                subject: e.target.value
-              }))}
-              className="bg-background"
-            />
             <Textarea
               placeholder="Describe project briefly or attach a file"
               value={descriptionForm.description}

@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useScript } from "../hooks/useScript";
 import { useAuth } from "@/lib/firebase/hooks";
+import { dbService } from "@/lib/firebase/db-service";
 
 interface PaystackButtonProps {
-  amount: number; // Amount in USD
+  amount: number; // Original amount in USD
+  discountedAmount?: number; // Optional discounted amount in USD
   onSuccess: (reference: string) => void;
   onClose: () => void;
   disabled?: boolean;
@@ -21,13 +23,33 @@ const KES_RATE = 135; // KES to USD conversion rate
 
 const PaystackButton: React.FC<PaystackButtonProps> = ({
   amount,
+  discountedAmount,
   onSuccess,
   onClose,
-  disabled = false,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const scriptLoaded = useScript("https://js.paystack.co/v1/inline.js");
   const { user, loading: authLoading } = useAuth();
+
+  // Use discounted amount if available, otherwise use original amount
+  const finalAmount = discountedAmount || amount;
+
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      if (!user?.uid) return;
+      try {
+        const userDoc = await dbService.getUser(user.uid);
+        if (userDoc?.email) {
+          setUserEmail(userDoc.email);
+        }
+      } catch (error) {
+        console.error("Error fetching user email:", error);
+      }
+    };
+
+    fetchUserEmail();
+  }, [user?.uid]);
 
   const initializePayment = async () => {
     if (!scriptLoaded || !window.PaystackPop) {
@@ -35,13 +57,18 @@ const PaystackButton: React.FC<PaystackButtonProps> = ({
       return;
     }
 
-    setLoading(true);
-    try {
-      const amountInKES = Math.round(amount * KES_RATE * 100); // Convert USD to KES cents
+    if (!userEmail) {
+      toast.error("User email not found");
+      return;
+    }
 
+    setLoading(true);
+
+    try {
+      const amountInKES = Math.round(finalAmount * KES_RATE * 100);
       const handler = window.PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!,
-        email: user!.email!,
+        email: userEmail,
         amount: amountInKES,
         currency: "KES",
         channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
@@ -60,6 +87,11 @@ const PaystackButton: React.FC<PaystackButtonProps> = ({
             {
               display_name: "Amount USD",
               variable_name: "amount_usd",
+              value: finalAmount.toString()
+            },
+            {
+              display_name: "Original Amount USD",
+              variable_name: "original_amount_usd",
               value: amount.toString()
             }
           ]
@@ -79,38 +111,25 @@ const PaystackButton: React.FC<PaystackButtonProps> = ({
       handler.openIframe();
     } catch (error) {
       console.error("Payment error:", error);
-      toast.error(error instanceof Error ? error.message : 'Payment initialization failed');
       setLoading(false);
+      toast.error("Failed to initialize payment");
     }
   };
-
-  if (authLoading) {
-    return (
-      <div className="mt-6">
-        <Button disabled className="w-full">
-          Loading...
-        </Button>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          Secure payment powered by Paystack
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="mt-6">
       <Button
         onClick={initializePayment}
-        disabled={disabled || loading || authLoading || !user?.email}
         className="w-full"
+        disabled={loading}
       >
-        {loading ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
+        {loading ? 'Processing...' : `Pay $${finalAmount.toFixed(2)}`}
       </Button>
       <p className="text-xs text-muted-foreground mt-2 text-center">
         Secure payment powered by Paystack
       </p>
       <p className="text-xs text-muted-foreground text-center">
-        (Approximately KES {(amount * KES_RATE).toFixed(2)})
+        (Approximately KES {(finalAmount * KES_RATE).toFixed(2)})
       </p>
     </div>
   );

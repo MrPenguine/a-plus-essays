@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -18,6 +18,23 @@ export default function PrivateLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body className={inter.className} suppressHydrationWarning>
+          <div className="min-h-screen" />
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`dark:bg-black ${inter.className}`} suppressHydrationWarning>
@@ -25,6 +42,7 @@ export default function PrivateLayout({
           enableSystem={false}
           attribute="class"
           defaultTheme="light"
+          storageKey="theme"
         >
           <Header />
           {children}

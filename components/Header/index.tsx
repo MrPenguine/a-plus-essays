@@ -27,6 +27,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { handleProjectCreation } from "@/lib/firebase/project-service";
+import CreateProject from "@/components/CreateProject";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 
 const Header = () => {
   const [stickyMenu, setStickyMenu] = useState(false);
@@ -35,6 +45,12 @@ const Header = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
+  const [formData, setFormData] = useState({
+    assignmentType: "",
+    projectTitle: "",
+    email: ""
+  });
+  const [showCreateProject, setShowCreateProject] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -66,10 +82,59 @@ const Header = () => {
     }
   };
 
-  const handleCreateProject = () => {
-    if (window.innerWidth < 768) {
-      router.push('/chat');
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSelectChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignmentType: value
+    }));
+  };
+
+  const handleCreateProject = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    // Validate form
+    if (!formData.assignmentType || !formData.projectTitle || (!user && !formData.email)) {
+      toast.error("Please fill in all required fields");
       return;
+    }
+
+    try {
+      const result = await handleProjectCreation(formData);
+      
+      if (result.success) {
+        // Check if mobile
+        if (window.innerWidth < 768) {
+          const searchParams = new URLSearchParams({
+            title: formData.projectTitle,
+            type: formData.assignmentType
+          });
+          router.push(`/chat?${searchParams.toString()}`);
+        } else {
+          // Desktop: go to create project page
+          const searchParams = new URLSearchParams({
+            title: formData.projectTitle,
+            type: formData.assignmentType
+          });
+          router.push(`/createproject?${searchParams.toString()}`);
+        }
+      } else {
+        if (result.redirect) {
+          toast.error(result.error || "Failed to process request");
+          router.push(result.redirect);
+        } else {
+          toast.error(result.error || "Failed to process request");
+        }
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
     }
   };
 
@@ -81,6 +146,11 @@ const Header = () => {
       fallback: 'CN',
       label: 'New User'
     };
+  };
+
+  const handleCreateProjectSubmit = () => {
+    // Close the dialog
+    setShowCreateProject(false);
   };
 
   return (
@@ -166,115 +236,37 @@ const Header = () => {
                     </Link>
                   </li>
                   <li>
-                    <Popover>
-                      <PopoverTrigger className="w-full">
-                        <div 
-                          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-center text-sm font-medium text-white hover:bg-primary/90 cursor-pointer"
-                          onClick={handleCreateProject}
-                        >
-                          Create Project
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent 
-                        className="w-[400px] p-6 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 shadow-lg" 
-                        sideOffset={5}
-                      >
-                        <div className="space-y-4">
-                          <div className="space-y-3">
-                            <div className="space-y-2">
-                              <Label htmlFor="title" className="text-sm font-medium text-black dark:text-white">
-                                Project title<span className="text-red-500">*</span>
-                              </Label>
-                              <Input 
-                                id="title" 
-                                placeholder="Enter project title"
-                                className="bg-white dark:bg-gray-900"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="description" className="text-sm font-medium text-black dark:text-white">
-                                Brief description
-                              </Label>
-                              <Textarea
-                                id="description"
-                                placeholder="I need..."
-                                className="min-h-[100px] bg-white dark:bg-gray-900"
-                              />
-                            </div>
+                    <Link
+                      href="/dashboard/getbonus"
+                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                    >
+                      Get $20 Bonus
+                    </Link>
+                  </li>
+                  <li>
+                    <Button
+                      onClick={() => setShowCreateProject(true)}
+                      className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:text-black"
+                    >
+                      Create Project
+                    </Button>
 
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="project-type" className="text-sm font-medium text-black dark:text-white">
-                                  Project type<span className="text-red-500">*</span>
-                                </Label>
-                                <Input 
-                                  id="project-type" 
-                                  placeholder="Enter project type"
-                                  className="bg-white dark:bg-gray-900"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="subject-area" className="text-sm font-medium text-black dark:text-white">
-                                  Subject area<span className="text-red-500">*</span>
-                                </Label>
-                                <Input 
-                                  id="subject-area" 
-                                  placeholder="Enter subject area"
-                                  className="bg-white dark:bg-gray-900"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex gap-4">
-                              <button 
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
-                              >
-                                <Paperclip className="h-4 w-4" />
-                                Attach
-                              </button>
-                              <button 
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
-                              >
-                                <Calendar className="h-4 w-4" />
-                                Deadline
-                              </button>
-                              <button 
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
-                              >
-                                <Users className="h-4 w-4" />
-                                Invite an expert
-                              </button>
-                            </div>
-
-                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/50 p-3 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <Switch id="auto-match" />
-                                <Label htmlFor="auto-match" className="text-sm">Auto-match</Label>
-                              </div>
-                              <span className="text-sm text-gray-500 dark:text-gray-400">
-                                We will choose the best expert for you
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between pt-2">
-                            <button 
-                              className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-50 dark:hover:bg-gray-900"
-                              onClick={() => router.back()}
-                            >
-                              Back
-                            </button>
-                            <button 
-                              onClick={() => router.push('/chat')}
-                              className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md hover:bg-primary/90"
-                            >
-                              Create
-                            </button>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Create New Project</DialogTitle>
+                          <DialogDescription>
+                            Fill in the details below to create your new project.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Card className="p-6">
+                          <CreateProject 
+                            onClose={() => setShowCreateProject(false)}
+                            onSubmit={handleCreateProjectSubmit}
+                          />
+                        </Card>
+                      </DialogContent>
+                    </Dialog>
                   </li>
                   <li>
                     <div className="text-sm font-medium text-black dark:text-white">

@@ -13,6 +13,8 @@ import { dbService } from "@/lib/firebase/db-service";
 import { toast } from "sonner";
 import { useState } from "react";
 import { differenceInDays, differenceInHours } from "date-fns";
+import { collection, query, where, getDocs, updateDoc, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 const PRICE_PER_PAGE = {
   'High School': 8,
@@ -47,12 +49,32 @@ const getTimeRemaining = (deadline: string) => {
   }
 };
 
+interface DiscountInfo {
+  hasDiscount: boolean;
+  type: 'referrer' | 'referred' | null;
+}
+
+interface OrderDetails {
+  id: string;
+  title: string;
+  subject: string;
+  level: string;
+  pages: number;
+  deadline: string;
+  assignment_type: string;
+  description?: string;
+}
+
 export default function PaymentDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [discountInfo, setDiscountInfo] = useState<DiscountInfo>({
+    hasDiscount: false,
+    type: null
+  });
   
   // Get data from URL params
   const orderData = {
@@ -66,6 +88,37 @@ export default function PaymentDetailPage() {
   // Calculate price based on education level and pages
   const pricePerPage = PRICE_PER_PAGE[orderData.level as keyof typeof PRICE_PER_PAGE] || 10;
   const totalPrice = orderData.pages * pricePerPage;
+
+  // Add effect to check and create user if needed
+  useEffect(() => {
+    const checkAndCreateUser = async () => {
+      if (!user) return;
+
+      try {
+        // Try to get user from database
+        const dbUser = await dbService.getUser(user.uid);
+        
+        // If user doesn't exist in database, create them
+        if (!dbUser) {
+          const userData = {
+            userid: user.uid,
+            email: user.email || '',
+            name: user.displayName || '',
+            balance: 0,
+            createdAt: new Date().toISOString(),
+            isAnonymous: false
+          };
+
+          await dbService.createUser(userData);
+          console.log('Created new user in database');
+        }
+      } catch (error) {
+        console.error('Error checking/creating user:', error);
+      }
+    };
+
+    checkAndCreateUser();
+  }, [user]);
 
   // Check payment status on load
   useEffect(() => {
@@ -88,6 +141,58 @@ export default function PaymentDetailPage() {
     checkPaymentStatus();
   }, [orderData.orderId, user, router]);
 
+  // Add effect to check referral discount
+  useEffect(() => {
+    const checkReferralDiscount = async () => {
+      if (!user) return;
+
+      try {
+        const referralsRef = collection(db, 'referrals');
+        
+        // Check if user is a referred user
+        const referredQuery = query(
+          referralsRef,
+          where('referred_uid', '==', user.uid),
+          where('referred_redeemed', '==', false)
+        );
+        
+        // Check if user is a referrer
+        const referrerQuery = query(
+          referralsRef,
+          where('referrer_uid', '==', user.uid),
+          where('referred_redeemed', '==', true),
+          where('referrer_redeemed', '==', false)
+        );
+
+        const [referredSnap, referrerSnap] = await Promise.all([
+          getDocs(referredQuery),
+          getDocs(referrerQuery)
+        ]);
+
+        if (!referredSnap.empty) {
+          setDiscountInfo({
+            hasDiscount: true,
+            type: 'referred'
+          });
+        } else if (!referrerSnap.empty) {
+          setDiscountInfo({
+            hasDiscount: true,
+            type: 'referrer'
+          });
+        }
+      } catch (error) {
+        console.error('Error checking referral discount:', error);
+      }
+    };
+
+    checkReferralDiscount();
+  }, [user]);
+
+  // Calculate discounted price
+  const discountedPrice = discountInfo.hasDiscount 
+    ? totalPrice * 0.8 // 20% off
+    : totalPrice;
+
   const handlePaymentSuccess = async (reference: string) => {
     if (!orderData.orderId || !user) {
       toast.error("Missing order details");
@@ -99,19 +204,35 @@ export default function PaymentDetailPage() {
       // Create payment record
       await dbService.createPayment({
         orderId: orderData.orderId,
-        amount: totalPrice,
+        amount: discountedPrice, // Use discounted price
         paymentId: reference,
         userId: user.uid
       });
 
-      // Update order status with payment details
+      // Update order status
       await dbService.updateOrder(orderData.orderId, {
         status: 'in_progress',
         paymentReference: reference,
         paymentStatus: 'completed',
-        paymentId: reference, // Add payment ID
-        paymentType: 'paystack' // Add payment type
+        paymentId: reference,
+        paymentType: 'paystack'
       });
+
+      // If discount was applied, update referral record
+      if (discountInfo.hasDiscount) {
+        const referralsRef = collection(db, 'referrals');
+        const q = discountInfo.type === 'referred'
+          ? query(referralsRef, where('referred_uid', '==', user.uid))
+          : query(referralsRef, where('referrer_uid', '==', user.uid));
+        
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          await updateDoc(doc(referralsRef, snapshot.docs[0].id), {
+            [discountInfo.type === 'referred' ? 'referred_redeemed' : 'referrer_redeemed']: true,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
 
       toast.success("Payment successful!");
       router.push(`/orders/${orderData.orderId}`);
@@ -126,6 +247,27 @@ export default function PaymentDetailPage() {
   const handlePaymentClose = () => {
     toast.info("Payment cancelled");
   };
+
+  useEffect(() => {
+    const fetchOrderDetails = async () => {
+      if (!orderData.orderId) return;
+
+      try {
+        // Get order details from Firestore
+        const orderRef = doc(db, 'orders', orderData.orderId);
+        const orderSnap = await getDoc(orderRef);
+        
+        if (orderSnap.exists()) {
+          setOrderDetails(orderSnap.data() as OrderDetails);
+        }
+      } catch (error) {
+        console.error('Error fetching order details:', error);
+        toast.error('Failed to load order details');
+      }
+    };
+
+    fetchOrderDetails();
+  }, [orderData.orderId]);
 
   if (authLoading) {
     return <div className="pt-[80px] px-4">Loading...</div>;
@@ -143,36 +285,53 @@ export default function PaymentDetailPage() {
   }
 
   return (
-    <div className="pt-[80px] px-4 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <div className="max-w-6xl mx-auto py-8">
-        {/* Back Button */}
-        <button 
-          onClick={() => router.back()}
-          className="flex items-center gap-2 mb-6 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to project
-        </button>
-
-        <h1 className="text-2xl font-bold mb-6">Payment details</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Order Summary and Payment Method */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Order Summary Card */}
-            <Card className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
+    <div className="pt-[80px] min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Order Details */}
+          <div className="lg:col-span-2">
+            <Card className="p-6 mb-6">
+              <h2 className="text-lg font-semibold mb-4">Order Details</h2>
+              {orderDetails ? (
+                <div className="space-y-4">
                   <div>
-                    <p className="font-medium">{orderData.title}</p>
+                    <h3 className="text-base font-medium mb-1">{orderDetails.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {orderData.deadline ? getTimeRemaining(orderData.deadline) : ''}
+                      Order #{orderDetails.id.slice(0, 8)}
                     </p>
                   </div>
-                  <p className="font-semibold">${totalPrice.toFixed(2)}</p>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Subject</p>
+                      <p className="font-medium">{orderDetails.subject}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Type</p>
+                      <p className="font-medium">{orderDetails.assignment_type}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Academic Level</p>
+                      <p className="font-medium">{orderDetails.level}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Pages</p>
+                      <p className="font-medium">{orderDetails.pages}</p>
+                    </div>
+                    
+                    {orderDetails.description && (
+                      <div className="col-span-2">
+                        <p className="text-muted-foreground">Description</p>
+                        <p className="font-medium line-clamp-3">{orderDetails.description}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  Loading order details...
+                </div>
+              )}
             </Card>
 
             {/* Payment Method Card */}
@@ -208,24 +367,55 @@ export default function PaymentDetailPage() {
           <div className="lg:col-span-1">
             <Card className="p-6 sticky top-[100px]">
               <h2 className="text-lg font-semibold mb-4">Price Details</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Number of pages:</span>
-                  <span className="font-medium">{orderData.pages}</span>
+              {orderDetails ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Number of pages:</span>
+                    <span className="font-medium">{orderDetails.pages}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Price per page:</span>
+                    <span className="font-medium">
+                      ${PRICE_PER_PAGE[orderDetails.level as keyof typeof PRICE_PER_PAGE].toFixed(2)}
+                    </span>
+                  </div>
+                  {discountInfo.hasDiscount && (
+                    <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+                      <span>Referral Discount (20%):</span>
+                      <span>-${(totalPrice * 0.2).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <span className="font-semibold">Total Price:</span>
+                    {discountInfo.hasDiscount ? (
+                      <div className="text-right">
+                        <span className="text-sm line-through text-muted-foreground">
+                          ${totalPrice.toFixed(2)}
+                        </span>
+                        <span className="text-lg font-bold text-primary ml-2">
+                          ${discountedPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-lg font-bold text-primary">
+                        ${totalPrice.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Price per page:</span>
-                  <span className="font-medium">
-                    ${pricePerPage.toFixed(2)}
-                  </span>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  Loading price details...
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t">
-                  <span className="font-semibold">Total Price:</span>
-                  <span className="text-lg font-bold text-primary">
-                    ${totalPrice.toFixed(2)}
-                  </span>
+              )}
+
+              {discountInfo.hasDiscount && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    20% referral discount applied!
+                  </p>
                 </div>
-              </div>
+              )}
 
               {/* Money Back Guarantee */}
               <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -240,10 +430,20 @@ export default function PaymentDetailPage() {
               {/* Payment Button */}
               <PaystackButton
                 amount={totalPrice}
+                discountedAmount={discountInfo.hasDiscount ? discountedPrice : undefined}
                 onSuccess={handlePaymentSuccess}
                 onClose={handlePaymentClose}
                 disabled={loading}
               />
+              
+              {/* Modified button to redirect to specific order */}
+              <Button 
+                onClick={() => router.push(`/orders/${orderData.orderId}`)} 
+                variant="ghost" 
+                className="w-full mt-2 text-black hover:bg-transparent hover:text-black dark:text-white hover:dark:text-white"
+              >
+                Proceed without payment
+              </Button>
             </Card>
           </div>
         </div>

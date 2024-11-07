@@ -1,18 +1,19 @@
 "use client";
 
-import Footer from "@/components/Footer";
-import Header from "@/components/Header";
-import ScrollToTop from "@/components/ScrollToTop";
-import { ThemeProvider } from "next-themes";
+import React, { useEffect, useState } from "react";
 import { Inter } from "next/font/google";
-import "../globals.css";
-import { useEffect, useState } from "react";
-import ToasterContext from "../context/ToastContext";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
+import "@/app/globals.css";
+
+// Import components
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export default function RootLayout({
+export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -23,6 +24,17 @@ export default function RootLayout({
     setMounted(true);
   }, []);
 
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body className={inter.className}>
+          <div className="min-h-screen" />
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`dark:bg-black ${inter.className}`} suppressHydrationWarning>
@@ -30,18 +42,14 @@ export default function RootLayout({
           enableSystem={false}
           attribute="class"
           defaultTheme="light"
+          storageKey="theme"
         >
-          {mounted && (
-            <>
-              <Header />
-              <ToasterContext />
-              {children}
-              <Footer />
-              <ScrollToTop />
-            </>
-          )}
+          <Header />
+          {children}
+          <Footer />
+          <ScrollToTop />
+          <Toaster position="top-center" />
         </ThemeProvider>
-        <Toaster position="top-center" />
       </body>
     </html>
   );
