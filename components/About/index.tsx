@@ -62,46 +62,37 @@ const About = () => {
               className="animate_right md:w-1/2"
             >
               <span className="font-medium uppercase text-black dark:text-white">
-                <span className="mb-4 mr-4 inline-flex rounded-full bg-meta px-4.5 py-1 text-metatitle uppercase text-white ">
-                  New
-                </span>{" "}
-                SaaS Boilerplate for Next.js
+                THE PROCESS
               </span>
               <h2 className="relative mb-6 text-3xl font-bold text-black dark:text-white xl:text-hero">
-                A Complete Solution for
-                <span className="relative inline-block before:absolute before:bottom-2.5 before:left-0 before:-z-1 before:h-3 before:w-full before:bg-titlebg dark:before:bg-titlebgdark">
-                  SaaS Startup
-                </span>
+                How to place an order with us
               </h2>
-              <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut
-                ultricies lacus non fermentum ultrices. Fusce consectetur le.
-              </p>
 
-              <div className="mt-7.5 flex items-center gap-5">
-                <div className="flex h-15 w-15 items-center justify-center rounded-[50%] border border-stroke dark:border-strokedark dark:bg-blacksection">
-                  <p className="text-metatitle2 font-semibold text-black dark:text-white">
-                    01
-                  </p>
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">1. Fill in a brief</h3>
+                  <p className="mb-4">Tell us what you need help with, describe your project requirements, and set the deadline</p>
+                  <button 
+                    onClick={() => window.location.href = '/createproject'}
+                    className="inline-flex items-center justify-center rounded-full bg-primary px-7 py-3 text-white dark:text-black duration-300 ease-in-out hover:bg-primary/90"
+                  >
+                    Order Now
+                  </button>
                 </div>
-                <div className="w-3/4">
-                  <h3 className="mb-0.5 text-metatitle2 text-black dark:text-white">
-                    React 18, Next.js 13 and TypeScript
-                  </h3>
-                  <p>Ut ultricies lacus non fermentum ultrices.</p>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-2">2. Expert Assignment</h3>
+                  <p>We'll assign the best-suited expert for your project based on the subject matter and requirements</p>
                 </div>
-              </div>
-              <div className="mt-7.5 flex items-center gap-5">
-                <div className="flex h-15 w-15 items-center justify-center rounded-[50%] border border-stroke dark:border-strokedark dark:bg-blacksection">
-                  <p className="text-metatitle2 font-semibold text-black dark:text-white">
-                    02
-                  </p>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-2">3. Get it done on time</h3>
+                  <p>Chat with the expert directly, discuss your project in detail, and get professional academic assistance by the deadline</p>
                 </div>
-                <div className="w-3/4">
-                  <h3 className="mb-0.5 text-metatitle2 text-black dark:text-white">
-                    Fully Customizable
-                  </h3>
-                  <p>consectetur adipiscing elit fermentum ultricies.</p>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-2">4. Make it perfect</h3>
+                  <p>Get your finished assignment checked for plagiarism and errors, and request revisions if needed — until it is up to your standards</p>
                 </div>
               </div>
             </motion.div>

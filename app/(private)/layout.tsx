@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import "@/app/globals.css";
+import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 
 // Import components
 import Header from "@/components/Header";
@@ -18,37 +19,19 @@ export default function PrivateLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Don't render anything until mounted to prevent hydration mismatch
-  if (!mounted) {
-    return (
-      <html lang="en" suppressHydrationWarning>
-        <body className={inter.className} suppressHydrationWarning>
-          <div className="min-h-screen" />
-        </body>
-      </html>
-    );
-  }
-
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`dark:bg-black ${inter.className}`} suppressHydrationWarning>
-        <ThemeProvider
-          enableSystem={false}
-          attribute="class"
-          defaultTheme="light"
-          storageKey="theme"
-        >
-          <Header />
-          {children}
-          <Footer />
-          <ScrollToTop />
-          <Toaster position="top-center" />
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ProtectedRoute>
+            <div className="flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-grow">{children}</main>
+              <Footer />
+            </div>
+            <ScrollToTop />
+            <Toaster position="top-center" />
+          </ProtectedRoute>
         </ThemeProvider>
       </body>
     </html>
