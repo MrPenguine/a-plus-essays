@@ -11,6 +11,29 @@ const RETRY_CONFIG = {
   maxDelay: 5000
 };
 
+// Type definitions for B2 responses
+interface B2AuthResponse {
+  apiUrl: string;
+  authorizationToken: string;
+  downloadUrl: string;
+}
+
+interface B2UploadUrlResponse {
+  uploadUrl: string;
+  authorizationToken: string;
+}
+
+interface B2UploadResponse {
+  fileId: string;
+  fileName: string;
+}
+
+interface B2DownloadAuthResponse {
+  authorizationToken: string;
+  downloadUrl: string;
+  expirationTimestamp: number;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -23,15 +46,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Determine folder based on file type
+    const folder = file.type.startsWith('image/') ? 'profile_pictures' : 'a-plus-essays';
+    
     // Authorization retry logic
-    let authData = null;
+    let authData: B2AuthResponse | null = null;
     for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
       try {
         const authResponse = await axios.get('https://api.backblazeb2.com/b2api/v2/b2_authorize_account', {
           headers: {
             'Authorization': 'Basic ' + Buffer.from('4b5619123a9b:00594229414c263c08147f0b896fbf895a44bd4f99').toString('base64')
           },
-          timeout: 10000 // 10 second timeout
+          timeout: 10000
         });
 
         if (authResponse.status === 200) {
@@ -51,16 +77,13 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to get authorization');
     }
 
-    // Use original filename
-    const fileName = file.name;
-
     // Get upload URL with retry logic
-    let uploadUrl = null;
-    let authorizationToken = null;
+    let uploadUrl: string | null = null;
+    let authorizationToken: string | null = null;
     
     for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
       try {
-        const uploadUrlResponse = await axios.post(
+        const uploadUrlResponse = await axios.post<B2UploadUrlResponse>(
           `${authData.apiUrl}/b2api/v2/b2_get_upload_url`,
           { bucketId: 'c43bb52631c91152933a091b' },
           {
@@ -93,18 +116,18 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Upload file with retry logic
-    let uploadResult = null;
+    let uploadResult: B2UploadResponse | null = null;
     for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
       try {
-        const uploadResponse = await axios.post(uploadUrl, buffer, {
+        const uploadResponse = await axios.post<B2UploadResponse>(uploadUrl, buffer, {
           headers: {
             'Authorization': authorizationToken,
-            'X-Bz-File-Name': fileName,
+            'X-Bz-File-Name': `${folder}/${encodeURIComponent(file.name)}`,
             'Content-Type': file.type,
             'Content-Length': buffer.length.toString(),
             'X-Bz-Content-Sha1': 'do_not_verify'
           },
-          timeout: 30000 // 30 second timeout for upload
+          timeout: 30000
         });
 
         if (uploadResponse.status === 200) {
@@ -124,14 +147,14 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to upload file');
     }
 
-    // Construct the file URL
-    const fileUrl = `https://f004.backblazeb2.com/file/a-plus-essays/${fileName}`;
-
+    // Construct the public URL with folder
+    const fileUrl = `${authData.downloadUrl}/file/a-plus-essays/${encodeURIComponent(file.name)}`;
+    
     return NextResponse.json({
       success: true,
       fileId: uploadResult.fileId,
-      fileName: fileName,
-      fileUrl
+      fileName: encodeURIComponent(file.name),
+      fileUrl,
     });
   } catch (error) {
     console.error('Error uploading file:', error);

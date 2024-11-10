@@ -37,6 +37,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc } from "firebase/firestore";
+
+interface UserProfile {
+  photoURL?: string;
+}
 
 const Header = () => {
   const [stickyMenu, setStickyMenu] = useState(false);
@@ -51,10 +57,29 @@ const Header = () => {
     email: ""
   });
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch user profile from Firestore
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data() as UserProfile);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
 
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
@@ -139,12 +164,28 @@ const Header = () => {
   };
 
   const getAvatarDetails = () => {
-    if (!user) return { image: 'https://github.com/shadcn.png', fallback: 'CN', label: 'Guest' };
+    if (!user) return { image: '/default-avatar.png', fallback: 'CN' };
 
+    // Check Firestore profile picture first
+    if (userProfile?.photoURL) {
+      return {
+        image: userProfile.photoURL,
+        fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
+      };
+    }
+
+    // Then check Firebase Auth photo
+    if (user.providerData[0]?.photoURL) {
+      return {
+        image: user.providerData[0].photoURL,
+        fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
+      };
+    }
+
+    // Default avatar
     return {
-      image: 'https://github.com/shadcn.png',
-      fallback: 'CN',
-      label: 'New User'
+      image: '/default-avatar.png',
+      fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
     };
   };
 
@@ -323,8 +364,8 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src="https://github.com/shadcn.png" alt="Profile" />
-                      <AvatarFallback>CN</AvatarFallback>
+                      <AvatarImage src={getAvatarDetails().image} alt="Profile" />
+                      <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>

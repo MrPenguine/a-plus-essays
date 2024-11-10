@@ -14,8 +14,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { EmailAuthProvider } from "firebase/auth";
-import { auth } from "@/lib/firebase/config";
+import { auth, db } from "@/lib/firebase/config";
 import { countries } from 'countries-list';
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 // Convert countries object to array and sort by name
 const countryList = Object.entries(countries).map(([code, country]) => ({
@@ -25,6 +26,10 @@ const countryList = Object.entries(countries).map(([code, country]) => ({
   phone: country.phone[0]
 })).sort((a, b) => a.label.localeCompare(b.label));
 
+interface UserProfile {
+  photoURL?: string;
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -32,6 +37,7 @@ export default function SettingsPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -42,18 +48,93 @@ export default function SettingsPage() {
     }
   }, [user]);
 
-  // Get avatar details
-  const getAvatarDetails = () => {
-    if (!user) return { image: 'https://github.com/shadcn.png', fallback: 'CN' };
+  // Add useEffect to fetch user profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data() as UserProfile);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
 
+    fetchUserProfile();
+  }, [user]);
+
+  // Update getAvatarDetails to match header implementation
+  const getAvatarDetails = () => {
+    if (!user) return { image: '/default-avatar.png', fallback: 'CN' };
+
+    // Check Firestore profile picture first
+    if (userProfile?.photoURL) {
+      return {
+        image: userProfile.photoURL,
+        fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
+      };
+    }
+
+    // Then check Firebase Auth photo
+    if (user.providerData[0]?.photoURL) {
+      return {
+        image: user.providerData[0].photoURL,
+        fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
+      };
+    }
+
+    // Default avatar
     return {
-      image: 'https://github.com/shadcn.png', // Always use default avatar
-      fallback: 'CN'
+      image: '/default-avatar.png',
+      fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
     };
   };
 
+  // Update handlePhotoUpload to refresh the profile
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    toast.info("Photo upload functionality coming soon");
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    try {
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const { fileUrl } = await response.json();
+
+      // Update user profile in Firestore
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        photoURL: fileUrl
+      });
+
+      // Update local state immediately
+      setUserProfile(prev => ({
+        ...prev,
+        photoURL: fileUrl
+      }));
+
+      toast.success('Profile picture updated');
+
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error('Failed to upload profile picture');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async (section: string) => {
@@ -83,8 +164,19 @@ export default function SettingsPage() {
                 <Label className="text-sm text-muted-foreground mb-2 block">Profile Picture</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    <AvatarImage src={getAvatarDetails().image} alt="Profile" />
-                    <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
+                    {uploading ? (
+                      <div className="h-full w-full flex items-center justify-center bg-muted">
+                        <svg className="animate-spin h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    ) : (
+                      <>
+                        <AvatarImage src={getAvatarDetails().image} alt="Profile" />
+                        <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
+                      </>
+                    )}
                   </Avatar>
                   <div>
                     <Button 
@@ -93,7 +185,7 @@ export default function SettingsPage() {
                       disabled={uploading}
                       size="sm"
                     >
-                      Upload a photo
+                      {uploading ? 'Uploading...' : 'Upload a photo'}
                     </Button>
                     <input
                       id="photo-upload"
