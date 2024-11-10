@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { EmailAuthProvider } from "firebase/auth";
+import { EmailAuthProvider, linkWithCredential, getAuth } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/config";
 import { countries } from 'countries-list';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
@@ -28,27 +28,29 @@ const countryList = Object.entries(countries).map(([code, country]) => ({
 
 interface UserProfile {
   photoURL?: string;
+  email?: string;
+  country?: string;
+  city?: string;
+  phoneNumbers?: string[];
 }
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("");
-  const [popoverOpen, setPopoverOpen] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [formData, setFormData] = useState({
+    country: "",
+    city: "",
+    phoneNumbers: [] as string[],
+    newPhoneNumber: ""
+  });
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [password, setPassword] = useState("");
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      const hasPasswordProvider = user.providerData.some(
-        (provider) => provider.providerId === EmailAuthProvider.PROVIDER_ID
-      );
-      setHasPassword(hasPasswordProvider);
-    }
-  }, [user]);
-
-  // Add useEffect to fetch user profile
+  // Load user data
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user) return;
@@ -56,10 +58,18 @@ export default function SettingsPage() {
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
+          const data = userDoc.data() as UserProfile;
+          setUserProfile(data);
+          setFormData({
+            country: data.country || "",
+            city: data.city || "",
+            phoneNumbers: data.phoneNumbers || [],
+            newPhoneNumber: ""
+          });
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
+        toast.error('Failed to load user profile');
       }
     };
 
@@ -137,15 +147,134 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSave = async (section: string) => {
-    toast.success(`${section} settings saved`);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const handleSave = async (section: string) => {
+    if (!user) return;
+
+    try {
+      setSaving(true);
+      const userRef = doc(db, 'users', user.uid);
+      
+      await updateDoc(userRef, {
+        ...formData
+      });
+
+      // Update local state
+      setUserProfile(prev => ({
+        ...prev,
+        ...formData
+      }));
+
+      toast.success(`${section} settings saved`);
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phoneNumber) {
-      toast.success("Phone number saved");
+    if (!user || !formData.newPhoneNumber) return;
+
+    try {
+      setSaving(true);
+      const userRef = doc(db, 'users', user.uid);
+      
+      const updatedPhoneNumbers = [...formData.phoneNumbers, formData.newPhoneNumber];
+      
+      await updateDoc(userRef, {
+        phoneNumbers: updatedPhoneNumbers
+      });
+
+      // Update local state
+      setFormData(prev => ({
+        ...prev,
+        phoneNumbers: updatedPhoneNumbers,
+        newPhoneNumber: "" // Clear input
+      }));
+
       setPopoverOpen(false);
+      toast.success("Phone number added");
+    } catch (error) {
+      console.error('Error saving phone number:', error);
+      toast.error('Failed to save phone number');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemovePhoneNumber = async (indexToRemove: number) => {
+    if (!user) return;
+
+    try {
+      setSaving(true);
+      const userRef = doc(db, 'users', user.uid);
+      
+      const updatedPhoneNumbers = formData.phoneNumbers.filter((_, index) => index !== indexToRemove);
+      
+      await updateDoc(userRef, {
+        phoneNumbers: updatedPhoneNumbers
+      });
+
+      // Update local state
+      setFormData(prev => ({
+        ...prev,
+        phoneNumbers: updatedPhoneNumbers
+      }));
+
+      toast.success("Phone number removed");
+    } catch (error) {
+      console.error('Error removing phone number:', error);
+      toast.error('Failed to remove phone number');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Function to convert anonymous account to email/password
+  const handleSetPassword = async () => {
+    if (!user || !userProfile?.email || !password) {
+      toast.error("Email and password are required");
+      return;
+    }
+
+    try {
+      setIsSettingPassword(true);
+
+      // Create credential with email and password
+      const credential = EmailAuthProvider.credential(
+        userProfile.email,
+        password
+      );
+
+      // Link anonymous account with email/password
+      await linkWithCredential(user, credential);
+
+      // Update local state
+      setHasPassword(true);
+      setPassword("");
+      
+      toast.success("Password set successfully. You can now sign in with email and password.");
+    } catch (error: any) {
+      console.error("Error setting password:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error("This email is already associated with another account");
+      } else if (error.code === 'auth/weak-password') {
+        toast.error("Password should be at least 6 characters");
+      } else {
+        toast.error("Failed to set password. Please try again.");
+      }
+    } finally {
+      setIsSettingPassword(false);
     }
   };
 
@@ -154,7 +283,7 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-6xl px-4 py-8">
         <h1 className="text-2xl font-bold mb-8">Settings</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:[&>*]:self-start">
           {/* Personal Info Section */}
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-6">Personal Info</h2>
@@ -203,9 +332,10 @@ export default function SettingsPage() {
                 <Label htmlFor="email" className="text-sm text-muted-foreground">Email*</Label>
                 <Input 
                   id="email" 
-                  value={user?.email || 'New User'} 
+                  value={userProfile?.email || user?.email || ''} 
                   disabled 
                   type="email"
+                  className="bg-muted"
                 />
               </div>
 
@@ -214,8 +344,11 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-sm text-muted-foreground">Country</Label>
                   <select
-                    value={selectedCountry}
-                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    name="country"
+                    value={formData.country}
+                    onChange={(e) => handleInputChange({
+                      target: { name: 'country', value: e.target.value }
+                    } as React.ChangeEvent<HTMLInputElement>)}
                     className="w-full mt-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     <option value="">Select country</option>
@@ -229,65 +362,76 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-sm text-muted-foreground">City</Label>
                   <Input 
+                    name="city"
                     placeholder="Enter city" 
+                    value={formData.city}
+                    onChange={handleInputChange}
                     className="bg-background"
                   />
                 </div>
               </div>
 
-              {/* Phone Number */}
+              {/* Phone Numbers */}
               <div>
-                <Label className="text-sm text-muted-foreground">Phone number</Label>
-                <div className="flex items-center gap-2">
-                  {phoneNumber ? (
-                    <div className="flex-1">
+                <Label className="text-sm text-muted-foreground">Phone numbers</Label>
+                <div className="space-y-2">
+                  {/* Existing phone numbers */}
+                  {formData.phoneNumbers.map((phone, index) => (
+                    <div key={index} className="flex items-center gap-2">
                       <Input 
-                        value={phoneNumber} 
+                        value={phone} 
                         disabled 
-                        className="bg-background"
-                        placeholder={selectedCountry ? `+${countries[selectedCountry].phone[0]}` : ''}
+                        className="bg-muted flex-1"
                       />
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleRemovePhoneNumber(index)}
+                        disabled={saving}
+                      >
+                        Remove
+                      </Button>
                     </div>
-                  ) : (
-                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="bg-background">
-                          Add phone number
+                  ))}
+
+                  {/* Add new phone number */}
+                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="bg-background">
+                        Add phone number
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 bg-background/100 backdrop-blur-lg border-stroke">
+                      <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                        <div>
+                          <Label htmlFor="newPhoneNumber">Phone Number</Label>
+                          <Input
+                            id="newPhoneNumber"
+                            name="newPhoneNumber"
+                            placeholder={formData.country ? `+${countries[formData.country]?.phone[0]}` : 'Select country first'}
+                            value={formData.newPhoneNumber}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              newPhoneNumber: e.target.value
+                            }))}
+                            className="bg-background"
+                          />
+                        </div>
+                        <Button type="submit" disabled={saving || !formData.newPhoneNumber}>
+                          {saving ? 'Adding...' : 'Add Number'}
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 bg-background/100 backdrop-blur-lg border-stroke">
-                        <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                          <div>
-                            <Label htmlFor="phone">Phone Number</Label>
-                            <Input
-                              id="phone"
-                              placeholder={selectedCountry ? `+${countries[selectedCountry].phone[0]}` : 'Select country first'}
-                              value={phoneNumber}
-                              onChange={(e) => setPhoneNumber(e.target.value)}
-                              className="bg-background"
-                            />
-                          </div>
-                          <Button type="submit" className="w-full">
-                            Save
-                          </Button>
-                        </form>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {phoneNumber && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setPhoneNumber("")}
-                    >
-                      Edit
-                    </Button>
-                  )}
+                      </form>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
-              <Button onClick={() => handleSave('personal')} className="w-full">
-                Save Changes
+              <Button 
+                onClick={() => handleSave('personal')} 
+                className="w-full"
+                disabled={saving}
+              >
+                {saving ? 'Saving Changes...' : 'Save Changes'}
               </Button>
             </div>
           </Card>
@@ -310,14 +454,47 @@ export default function SettingsPage() {
                 </>
               ) : (
                 <>
-                  <div>
-                    <Label htmlFor="set-password">Set Password</Label>
-                    <Input id="set-password" type="password" />
+                  <div className="space-y-2">
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        value={userProfile?.email || user?.email || ''} 
+                        disabled 
+                        className="bg-muted"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="set-password">Set Password</Label>
+                      <Input 
+                        id="set-password" 
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter a strong password"
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Setting a password will allow you to sign in with email and password in addition to your current sign-in method.
+                    </p>
+                    <Button 
+                      onClick={handleSetPassword}
+                      disabled={isSettingPassword || !password || !userProfile?.email}
+                      className="w-full"
+                    >
+                      {isSettingPassword ? (
+                        <div className="flex items-center gap-2">
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Setting Password...
+                        </div>
+                      ) : (
+                        'Set Password'
+                      )}
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Setting a password will allow you to sign in with email and password in addition to Google.
-                  </p>
-                  <Button onClick={() => handleSave('security')}>Set Password</Button>
                 </>
               )}
             </div>
