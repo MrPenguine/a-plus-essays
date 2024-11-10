@@ -24,33 +24,21 @@ export default function PublicLayout({
     setMounted(true);
   }, []);
 
-  // Don't render anything until mounted to prevent hydration mismatch
   if (!mounted) {
-    return (
-      <html lang="en" suppressHydrationWarning>
-        <body className={inter.className}>
-          <div className="min-h-screen" />
-        </body>
-      </html>
-    );
+    return null;
   }
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`dark:bg-black ${inter.className}`} suppressHydrationWarning>
-        <ThemeProvider
-          enableSystem={false}
-          attribute="class"
-          defaultTheme="light"
-          storageKey="theme"
-        >
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <div className={inter.className}>
+        <div className="flex min-h-screen flex-col">
           <Header />
-          {children}
+          <main className="flex-grow">{children}</main>
           <Footer />
-          <ScrollToTop />
-          <Toaster position="top-center" />
-        </ThemeProvider>
-      </body>
-    </html>
+        </div>
+        <ScrollToTop />
+        <Toaster position="top-center" />
+      </div>
+    </ThemeProvider>
   );
 }

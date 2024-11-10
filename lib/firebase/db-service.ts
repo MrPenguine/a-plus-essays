@@ -39,6 +39,9 @@ export interface Order {
   paymentId?: string | null;
   paymentReference?: string;
   paymentStatus?: string;
+  originalPrice: number;
+  adjustedPrice?: number;
+  additionalPaymentNeeded?: number;
 }
 
 const PRICE_PER_PAGE = {
@@ -130,12 +133,13 @@ export const dbService = {
       const pricePerPage = PRICE_PER_PAGE[orderData.level as keyof typeof PRICE_PER_PAGE] || 10;
       const totalPrice = (orderData.pages || 1) * pricePerPage;
 
-      // Set the document data with status and payment fields
       await setDoc(orderDoc, {
         ...orderData,
         orderid: orderId,
         price: totalPrice,
+        originalPrice: totalPrice,
         status: 'pending',
+        paymentStatus: 'pending',
         paymentType: null,
         paymentId: null,
         createdAt: new Date().toISOString()
@@ -168,6 +172,15 @@ export const dbService = {
     paymentStatus?: string;
     paymentId?: string;
     paymentType?: string;
+    title?: string;
+    description?: string;
+    pages?: number;
+    subject?: string;
+    assignment_type?: string;
+    wordcount?: number;
+    price?: number;
+    adjustedPrice?: number;
+    additionalPaymentNeeded?: number;
   }): Promise<void> {
     try {
       const orderRef = doc(db, 'orders', orderId);
@@ -226,7 +239,7 @@ export const dbService = {
     }
   },
 
-  async getOrder(orderId: string) {
+  async getOrder(orderId: string): Promise<OrderDetail> {
     try {
       const orderRef = doc(db, 'orders', orderId);
       const orderSnap = await getDoc(orderRef);
@@ -235,10 +248,14 @@ export const dbService = {
         throw new Error('Order not found');
       }
 
+      const data = orderSnap.data();
       return {
         id: orderSnap.id,
-        ...orderSnap.data()
-      };
+        ...data,
+        originalPrice: data.originalPrice || data.price, // Fallback for older orders
+        additionalPaymentNeeded: data.additionalPaymentNeeded || 0,
+        paymentStatus: data.paymentStatus || 'pending'
+      } as OrderDetail;
     } catch (error) {
       console.error("Error getting order:", error);
       throw error;

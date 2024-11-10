@@ -14,15 +14,13 @@ export default function MobileLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <ProtectedRoute>
-            <main className="flex-grow">{children}</main>
-            <Toaster position="top-center" />
-          </ProtectedRoute>
-        </ThemeProvider>
-      </body>
-    </html>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <div className={inter.className}>
+        <ProtectedRoute>
+          <main className="flex-grow">{children}</main>
+          <Toaster position="top-center" />
+        </ProtectedRoute>
+      </div>
+    </ThemeProvider>
   );
 } 

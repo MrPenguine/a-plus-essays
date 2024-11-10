@@ -28,20 +28,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { handleProjectCreation } from "@/lib/firebase/project-service";
-import CreateProjectDialog from "@/components/CreateProject/index";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
-import { db } from "@/lib/firebase/config";
 import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 interface UserProfile {
   photoURL?: string;
+  email?: string;
 }
 
 const Header = () => {
@@ -56,7 +48,6 @@ const Header = () => {
     projectTitle: "",
     email: ""
   });
-  const [showCreateProject, setShowCreateProject] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
@@ -189,11 +180,6 @@ const Header = () => {
     };
   };
 
-  const handleCreateProjectSubmit = () => {
-    // Close the dialog
-    setShowCreateProject(false);
-  };
-
   return (
     <header
       className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-black/80 ${
@@ -202,8 +188,17 @@ const Header = () => {
     >
       <div className="relative mx-auto max-w-c-1390 items-center justify-between px-4 md:px-8 xl:flex 2xl:px-0">
         <div className="flex w-full items-center justify-between xl:w-1/4">
-          <Link href="/" className="block w-full py-5 text-2xl font-bold">
-            A+ Essays
+          <Link href="/" className="block w-full py-5">
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/favicon.ico" 
+                alt="A+ Essays"
+                width={32}
+                height={32}
+                style={{ width: '32px', height: '32px' }}
+              />
+              <span className="text-xl font-bold">A+ Essays</span>
+            </div>
           </Link>
 
           <div className="flex items-center gap-4 xl:hidden">
@@ -285,29 +280,13 @@ const Header = () => {
                     </Link>
                   </li>
                   <li>
-                    <Button
-                      onClick={() => setShowCreateProject(true)}
-                      className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:text-black"
-                    >
-                      Create Project
-                    </Button>
-
-                    <Dialog open={showCreateProject} onOpenChange={setShowCreateProject}>
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Create New Project</DialogTitle>
-                          <DialogDescription>
-                            Fill in the details below to create your new project.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Card className="p-6">
-                          <CreateProjectDialog 
-                            onClose={() => setShowCreateProject(false)}
-                            onSubmit={handleCreateProjectSubmit}
-                          />
-                        </Card>
-                      </DialogContent>
-                    </Dialog>
+                    <Link href="/createproject">
+                      <Button
+                        className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:text-black"
+                      >
+                        Create Project
+                      </Button>
+                    </Link>
                   </li>
                   <li>
                     <div className="text-sm font-medium text-black dark:text-white">
@@ -364,25 +343,34 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={getAvatarDetails().image} alt="Profile" />
+                      <AvatarImage 
+                        src={getAvatarDetails().image} 
+                        alt="Profile"
+                        className="object-cover"
+                        priority
+                      />
                       <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuContent 
+                  className="w-56 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800" 
+                  align="end" 
+                  forceMount
+                >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
                         {user.displayName || 'New User'}
                       </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        New User
+                      <p className="text-xs text-muted-foreground">
+                        {userProfile?.email || user?.email || ''}
                       </p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/settings">
+                    <Link href="/settings" className="w-full">
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Settings</span>
                     </Link>

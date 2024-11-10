@@ -75,6 +75,8 @@ export default function PaymentDetailPage() {
     hasDiscount: false,
     type: null
   });
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [discountedPrice, setDiscountedPrice] = useState(0);
   
   // Get data from URL params
   const orderData = {
@@ -85,9 +87,19 @@ export default function PaymentDetailPage() {
     level: searchParams.get('level') || 'Undergraduate',
   };
 
-  // Calculate price based on education level and pages
-  const pricePerPage = PRICE_PER_PAGE[orderData.level as keyof typeof PRICE_PER_PAGE] || 10;
-  const totalPrice = orderData.pages * pricePerPage;
+  // Calculate prices whenever order details or discount changes
+  useEffect(() => {
+    if (orderDetails) {
+      const pricePerPage = PRICE_PER_PAGE[orderDetails.level as keyof typeof PRICE_PER_PAGE] || 10;
+      const calculatedTotal = orderDetails.pages * pricePerPage;
+      setTotalPrice(calculatedTotal);
+      
+      const calculatedDiscounted = discountInfo.hasDiscount 
+        ? calculatedTotal * 0.8 // 20% off
+        : calculatedTotal;
+      setDiscountedPrice(calculatedDiscounted);
+    }
+  }, [orderDetails, discountInfo]);
 
   // Add effect to check and create user if needed
   useEffect(() => {
@@ -187,11 +199,6 @@ export default function PaymentDetailPage() {
 
     checkReferralDiscount();
   }, [user]);
-
-  // Calculate discounted price
-  const discountedPrice = discountInfo.hasDiscount 
-    ? totalPrice * 0.8 // 20% off
-    : totalPrice;
 
   const handlePaymentSuccess = async (reference: string) => {
     if (!orderData.orderId || !user) {
@@ -429,8 +436,7 @@ export default function PaymentDetailPage() {
 
               {/* Payment Button */}
               <PaystackButton
-                amount={totalPrice}
-                discountedAmount={discountInfo.hasDiscount ? discountedPrice : undefined}
+                amount={discountedPrice}
                 onSuccess={handlePaymentSuccess}
                 onClose={handlePaymentClose}
                 disabled={loading}

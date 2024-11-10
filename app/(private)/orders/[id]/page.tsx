@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageCircle, X, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, MessageCircle, X, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useAuth } from "@/lib/firebase/hooks";
 import { dbService } from "@/lib/firebase/db-service";
@@ -19,6 +19,12 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { PRICE_PER_PAGE } from "@/lib/constants";
+import PaystackButton from "@/components/paystack";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
 
 interface OrderDetail {
   id: string;
@@ -35,7 +41,10 @@ interface OrderDetail {
   createdAt: string;
   file_links: string[];
   price: number;
-  paymentStatus?: string;
+  paymentStatus: 'pending' | 'partial' | 'completed';
+  originalPrice: number;
+  adjustedPrice?: number;
+  additionalPaymentNeeded?: number;
   updatedAt?: string;
   documents?: {
     documents: {
@@ -219,6 +228,51 @@ async function retryOperation<T>(
   throw new Error(`Failed to upload ${fileName} after ${config.maxAttempts} attempts: ${lastError?.message}`);
 }
 
+// Add this type for the editable fields
+interface EditableFields {
+  title: string;
+  description: string;
+  pages: number;
+  subject: string;
+  assignment_type: string;
+  deadline?: Date;
+}
+
+// Add these constants at the top of your file
+const ASSIGNMENT_TYPES = [
+  { value: 'essay', label: 'Essay' },
+  { value: 'research', label: 'Research Paper' },
+  { value: 'thesis', label: 'Thesis' },
+  { value: 'coursework', label: 'Coursework' },
+  { value: 'other', label: 'Other' }
+];
+
+
+const SUBJECTS = [
+  'English',
+  'Business',
+  'Nursing',
+  'History',
+  'Psychology',
+  'Sociology',
+  'Philosophy',
+  'Economics',
+  'Marketing',
+  'Other'
+];
+
+// Add this interface for payment handling
+interface PaymentHandlers {
+  onSuccess: (reference: string) => void;
+  onClose: () => void;
+}
+
+const getMinDate = (currentDeadline: string) => {
+  const deadline = new Date(currentDeadline);
+  const today = new Date();
+  return deadline > today ? deadline : today;
+};
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -231,6 +285,9 @@ export default function OrderDetailPage() {
   const [mounted, setMounted] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableFields, setEditableFields] = useState<EditableFields | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Handle mounting state
   useEffect(() => {
@@ -440,6 +497,62 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleEditClick = () => {
+    if (!order) return;
+    
+    setEditableFields({
+      title: order.title,
+      description: order.description,
+      pages: order.pages,
+      subject: order.subject,
+      assignment_type: order.assignment_type,
+      deadline: new Date(order.deadline)
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!order || !editableFields) return;
+    setSaving(true);
+
+    try {
+      // Calculate new price if pages changed
+      let newPrice = order.price;
+      if (editableFields.pages !== order.pages) {
+        const pricePerPage = PRICE_PER_PAGE[order.level as keyof typeof PRICE_PER_PAGE] || 10;
+        newPrice = editableFields.pages * pricePerPage;
+      }
+
+      const additionalPaymentNeeded = Math.max(0, newPrice - order.originalPrice);
+
+      // Update order in database
+      await dbService.updateOrder(order.id, {
+        title: editableFields.title,
+        description: editableFields.description,
+        pages: editableFields.pages,
+        subject: editableFields.subject,
+        assignment_type: editableFields.assignment_type,
+        wordcount: editableFields.pages * 275,
+        price: newPrice,
+        adjustedPrice: newPrice,
+        additionalPaymentNeeded,
+        paymentStatus: additionalPaymentNeeded > 0 ? 'partial' : order.paymentStatus,
+        deadline: editableFields.deadline ? format(editableFields.deadline, "MMMM do, yyyy 'at' h:mm a") : order.deadline
+      });
+
+      // Fetch updated order
+      const updatedOrder = await dbService.getOrder(order.id);
+      setOrder(updatedOrder as OrderDetail);
+      setIsEditing(false);
+      toast.success('Order updated successfully');
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast.error('Failed to update order');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="pt-[80px] relative bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Chat Panel - Slides from right */}
@@ -540,52 +653,273 @@ export default function OrderDetailPage() {
                   {order?.status}
                 </Badge>
               </div>
-              {order.status === 'pending' && (
-                <Button
-                  onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
-                  className="bg-primary hover:bg-primary/90 text-white dark:text-black"
-                >
-                  Proceed to payment
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {order?.additionalPaymentNeeded && order.additionalPaymentNeeded > 0 && (
+                  <div className="flex flex-col items-end">
+                    <p className="text-sm text-muted-foreground">Additional Payment Required:</p>
+                    <p className="font-medium text-primary">
+                      ${order.additionalPaymentNeeded.toFixed(2)}
+                    </p>
+                  </div>
+                )}
+                {order.status === 'pending' ? (
+                  <Button
+                    onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
+                    className="bg-primary hover:bg-primary/90 text-white dark:text-black"
+                  >
+                    Proceed to payment
+                  </Button>
+                ) : (order?.additionalPaymentNeeded && order.additionalPaymentNeeded > 0) && (
+                  <PaystackButton
+                    amount={order.additionalPaymentNeeded}
+                    onSuccess={async (reference: string) => {
+                      try {
+                        // Update order payment status
+                        await dbService.updateOrder(order.id, {
+                          paymentStatus: 'completed',
+                          paymentReference: reference,
+                          additionalPaymentNeeded: 0
+                        });
+
+                        // Create payment record
+                        await dbService.createPayment({
+                          orderId: order.id,
+                          amount: order.additionalPaymentNeeded,
+                          paymentId: reference,
+                          userId: user.uid
+                        });
+
+                        // Refresh order data
+                        const updatedOrder = await dbService.getOrder(order.id);
+                        setOrder(updatedOrder as OrderDetail);
+                        
+                        toast.success('Additional payment completed successfully');
+                      } catch (error) {
+                        console.error('Error processing payment:', error);
+                        toast.error('Failed to process payment');
+                      }
+                    }}
+                    onClose={() => {
+                      toast.error('Payment cancelled');
+                    }}
+                    disabled={false}
+                  />
+                )}
+              </div>
             </div>
+            {order?.adjustedPrice && order?.originalPrice && order.adjustedPrice !== order.originalPrice && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Original Price:</span>
+                <span className="font-medium">${order.originalPrice.toFixed(2)}</span>
+              </div>
+            )}
           </div>
         </Card>
 
         <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
-          <h2 className="text-lg font-semibold mb-4">Assignment Details</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Assignment Details</h2>
+            {!isEditing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditClick}
+                className="flex items-center gap-2"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveChanges}
+                  disabled={saving}
+                  className="bg-primary hover:bg-primary/90 text-white dark:text-black"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Type</p>
-              <p className="font-medium">{order?.assignment_type}</p>
+              {isEditing ? (
+                <select
+                  value={editableFields?.assignment_type}
+                  onChange={(e) => setEditableFields(prev => ({
+                    ...prev!,
+                    assignment_type: e.target.value
+                  }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {ASSIGNMENT_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="font-medium">{order?.assignment_type}</p>
+              )}
             </div>
+
             <div>
               <p className="text-sm text-muted-foreground">Subject</p>
-              <p className="font-medium">{order?.subject}</p>
+              {isEditing ? (
+                <select
+                  value={editableFields?.subject}
+                  onChange={(e) => setEditableFields(prev => ({
+                    ...prev!,
+                    subject: e.target.value
+                  }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {SUBJECTS.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="font-medium">{order?.subject}</p>
+              )}
             </div>
+
             <div>
               <p className="text-sm text-muted-foreground">Pages</p>
-              <p className="font-medium">{order?.pages}</p>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  min="1"
+                  value={editableFields?.pages}
+                  onChange={(e) => setEditableFields(prev => ({
+                    ...prev!,
+                    pages: parseInt(e.target.value)
+                  }))}
+                  className="w-full"
+                />
+              ) : (
+                <p className="font-medium">{order?.pages}</p>
+              )}
             </div>
+
             <div>
               <p className="text-sm text-muted-foreground">Words</p>
-              <p className="font-medium">{order?.wordcount}</p>
+              <p className="font-medium">
+                {isEditing ? editableFields?.pages ? editableFields.pages * 275 : 0 : order?.wordcount}
+              </p>
             </div>
+
             <div>
               <p className="text-sm text-muted-foreground">Level</p>
               <p className="font-medium">{order?.level}</p>
             </div>
+
             <div>
               <p className="text-sm text-muted-foreground">Price</p>
-              <p className="font-medium">${order?.price.toFixed(2)}</p>
+              <p className="font-medium">
+                ${isEditing ? 
+                  ((editableFields?.pages || 0) * (PRICE_PER_PAGE[order.level as keyof typeof PRICE_PER_PAGE] || 10)).toFixed(2) 
+                  : order?.price.toFixed(2)}
+              </p>
             </div>
 
-            {/* Deadline Section - Simplified */}
+            {/* Deadline Section */}
             <div className="col-span-2 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-2">Deadline</p>
-              <p className="font-medium">
-                {order.deadline}
-              </p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Deadline</p>
+                  <p className="font-medium">
+                    {isEditing && editableFields?.deadline 
+                      ? format(editableFields.deadline, "MMMM do, yyyy 'at' h:mm a")
+                      : order.deadline}
+                  </p>
+                </div>
+                {isEditing && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        Extend Deadline
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-auto p-0 bg-white dark:bg-gray-950 border border-border shadow-lg"
+                      align="end"
+                    >
+                      <div className="p-3 border-b border-border">
+                        <h4 className="font-medium">Extend Deadline</h4>
+                      </div>
+                      <Calendar
+                        mode="single"
+                        selected={editableFields?.deadline}
+                        onSelect={(date) => date && setEditableFields(prev => ({
+                          ...prev!,
+                          deadline: date
+                        }))}
+                        disabled={(date) => {
+                          const minDate = getMinDate(order.deadline);
+                          return date < minDate;
+                        }}
+                        initialFocus
+                        className="rounded-t-none"
+                      />
+                      <div className="p-3 border-t border-border bg-white dark:bg-gray-950">
+                        <select
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-2"
+                          value={editableFields?.deadline?.getHours() || 12}
+                          onChange={(e) => {
+                            const newDate = new Date(editableFields?.deadline || new Date());
+                            newDate.setHours(parseInt(e.target.value));
+                            setEditableFields(prev => ({
+                              ...prev!,
+                              deadline: newDate
+                            }));
+                          }}
+                        >
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <option key={i} value={i}>
+                              {i === 0 ? '12 AM' : i === 12 ? '12 PM' : i > 12 ? `${i-12} PM` : `${i} AM`}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={editableFields?.deadline?.getMinutes() || 0}
+                          onChange={(e) => {
+                            const newDate = new Date(editableFields?.deadline || new Date());
+                            newDate.setMinutes(parseInt(e.target.value));
+                            setEditableFields(prev => ({
+                              ...prev!,
+                              deadline: newDate
+                            }));
+                          }}
+                        >
+                          {['00', '15', '30', '45'].map((minutes) => (
+                            <option key={minutes} value={minutes}>
+                              {minutes} minutes
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </div>
           </div>
         </Card>
@@ -593,27 +927,40 @@ export default function OrderDetailPage() {
         <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
           <h2 className="text-lg font-semibold mb-4">Description</h2>
           <div>
-            <p className={`text-muted-foreground whitespace-pre-wrap ${
-              !showFullDescription ? 'line-clamp-2' : ''
-            }`}>
-              {order?.description || 'No description provided'}
-            </p>
-            {order?.description && order.description.split('\n').length > 2 && (
-              <Button
-                variant="ghost"
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="mt-2 text-primary hover:text-primary/90"
-              >
-                {showFullDescription ? (
-                  <div className="flex items-center gap-2">
-                    Show Less <ChevronUp className="h-4 w-4" />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    Show More <ChevronDown className="h-4 w-4" />
-                  </div>
+            {isEditing ? (
+              <Textarea
+                value={editableFields?.description}
+                onChange={(e) => setEditableFields(prev => ({
+                  ...prev!,
+                  description: e.target.value
+                }))}
+                className="min-h-[100px]"
+              />
+            ) : (
+              <>
+                <p className={`text-muted-foreground whitespace-pre-wrap ${
+                  !showFullDescription ? 'line-clamp-2' : ''
+                }`}>
+                  {order?.description || 'No description provided'}
+                </p>
+                {order?.description && order.description.split('\n').length > 2 && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    className="mt-2 text-primary hover:text-primary/90"
+                  >
+                    {showFullDescription ? (
+                      <div className="flex items-center gap-2">
+                        Show Less <ChevronUp className="h-4 w-4" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        Show More <ChevronDown className="h-4 w-4" />
+                      </div>
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </>
             )}
           </div>
         </Card>
@@ -691,7 +1038,7 @@ export default function OrderDetailPage() {
             {/* File Display Area */}
             <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
               {activeFileTab === 'client' ? (
-                order?.documents?.documents.client.length > 0 ? (
+                order?.documents?.documents?.client?.length ? (
                   <div className="space-y-2">
                     {order.documents.documents.client.map((group) => (
                       group.files.map((file, index) => (
@@ -734,7 +1081,7 @@ export default function OrderDetailPage() {
                   <p className="text-center text-muted-foreground">No client documents uploaded yet</p>
                 )
               ) : (
-                order?.documents?.documents.tutor.length > 0 ? (
+                order?.documents?.documents?.tutor?.length ? (
                   <div className="space-y-2">
                     {order.documents.documents.tutor.map((group) => (
                       group.files.map((file, index) => (
