@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { handleProjectCreation } from "@/lib/firebase/project-service";
-import CreateProject from "@/components/CreateProject";
+import CreateProjectDialog from "@/components/CreateProject/index";
 import {
   Dialog,
   DialogContent,
@@ -260,7 +260,7 @@ const Header = () => {
                           </DialogDescription>
                         </DialogHeader>
                         <Card className="p-6">
-                          <CreateProject 
+                          <CreateProjectDialog 
                             onClose={() => setShowCreateProject(false)}
                             onSubmit={handleCreateProjectSubmit}
                           />

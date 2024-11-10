@@ -11,6 +11,14 @@ import { dbService } from "@/lib/firebase/db-service";
 import LoadingState from "./components/LoadingState";
 import { Button } from "@/components/ui/button";
 import { parse } from "date-fns";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { toast } from 'sonner';
 
 interface OrderDetail {
   id: string;
@@ -29,6 +37,28 @@ interface OrderDetail {
   price: number;
   paymentStatus?: string;
   updatedAt?: string;
+  documents?: {
+    documents: {
+      client: Array<{
+        date: string;
+        files: Array<{
+          fileName: string;
+          url: string;
+        }>;
+      }>;
+      tutor: Array<{
+        date: string;
+        files: Array<{
+          fileName: string;
+          url: string;
+        }>;
+      }>;
+    };
+  };
+}
+interface UploadedFile {
+  fileName: string;
+  url: string;
 }
 
 function isValidDate(dateString: string) {
@@ -150,6 +180,45 @@ function useCountdown(deadlineString: string | undefined | null) {
   return timeLeft;
 }
 
+// Add this helper function at the top of the file
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Add this interface for retry configuration
+interface RetryConfig {
+  maxAttempts: number;
+  baseDelay: number;
+  maxDelay: number;
+}
+
+// Add this retry helper function
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  fileName: string,
+  config: RetryConfig = { maxAttempts: 3, baseDelay: 1000, maxDelay: 5000 }
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt === config.maxAttempts) break;
+
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        config.baseDelay * Math.pow(2, attempt - 1),
+        config.maxDelay
+      );
+
+      console.log(`Attempt ${attempt} failed for ${fileName}. Retrying in ${delay}ms...`);
+      await wait(delay);
+    }
+  }
+
+  throw new Error(`Failed to upload ${fileName} after ${config.maxAttempts} attempts: ${lastError?.message}`);
+}
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -161,6 +230,7 @@ export default function OrderDetailPage() {
   const [activeFileTab, setActiveFileTab] = useState<'client' | 'tutor'>('client');
   const [mounted, setMounted] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Handle mounting state
   useEffect(() => {
@@ -235,6 +305,138 @@ export default function OrderDetailPage() {
         return 'bg-yellow-500';
       default:
         return 'bg-gray-500';
+    }
+  };
+
+  // Update the handleFileUpload function
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    
+    setUploading(true);
+    const files = Array.from(e.target.files);
+    const uploadedFiles: UploadedFile[] = [];
+    const failedUploads: string[] = [];
+
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          await retryOperation(
+            async () => {
+              const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!response.ok) {
+                throw new Error(`Upload failed with status ${response.status}`);
+              }
+
+              const result = await response.json();
+              if (!result.success) {
+                throw new Error(result.error || 'Upload failed');
+              }
+
+              uploadedFiles.push({
+                fileName: result.fileName,
+                url: result.fileUrl
+              });
+            },
+            file.name,
+            { maxAttempts: 3, baseDelay: 1000, maxDelay: 5000 }
+          );
+        } catch (error) {
+          console.error(`Error uploading ${file.name}:`, error);
+          failedUploads.push(file.name);
+        }
+      }
+
+      // Show success message if any files were uploaded
+      if (uploadedFiles.length > 0) {
+        // Update the order's documents
+        const updatedOrder = {
+          ...order,
+          documents: {
+            ...order?.documents,
+            documents: {
+              ...order?.documents?.documents,
+              [activeFileTab]: [
+                {
+                  date: new Date().toISOString().split('T')[0],
+                  files: uploadedFiles
+                },
+                ...(order?.documents?.documents[activeFileTab] || [])
+              ]
+            }
+          }
+        };
+
+        // Update the order in the database
+        await dbService.updateOrder(order.id, {
+          documents: updatedOrder.documents
+        });
+
+        // Update local state
+        setOrder(updatedOrder);
+        
+        if (failedUploads.length === 0) {
+          toast.success('All files uploaded successfully');
+        } else {
+          toast.success(`${uploadedFiles.length} file(s) uploaded successfully`);
+        }
+      }
+
+      // Show error message for failed uploads
+      if (failedUploads.length > 0) {
+        failedUploads.forEach(fileName => {
+          toast.error(`Failed to upload ${fileName}`);
+        });
+      }
+    } catch (error) {
+      console.error('Error handling file uploads:', error);
+      toast.error('An error occurred while uploading files');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Add this function to handle file removal
+  const handleRemoveFile = async (groupDate: string, fileIndex: number) => {
+    if (!order) return;
+
+    try {
+      const updatedOrder = {
+        ...order,
+        documents: {
+          ...order.documents,
+          documents: {
+            ...order.documents?.documents,
+            client: order.documents?.documents.client.map(group => {
+              if (group.date === groupDate) {
+                return {
+                  ...group,
+                  files: group.files.filter((_, index) => index !== fileIndex)
+                };
+              }
+              return group;
+            }).filter(group => group.files.length > 0) // Remove empty groups
+          }
+        }
+      };
+
+      // Update the order in the database
+      await dbService.updateOrder(order.id, {
+        documents: updatedOrder.documents
+      });
+
+      // Update local state
+      setOrder(updatedOrder);
+      toast.success('File removed successfully');
+    } catch (error) {
+      console.error('Error removing file:', error);
+      toast.error('Failed to remove file');
     }
   };
 
@@ -350,7 +552,7 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
           <h2 className="text-lg font-semibold mb-4">Assignment Details</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -388,7 +590,7 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
           <h2 className="text-lg font-semibold mb-4">Description</h2>
           <div>
             <p className={`text-muted-foreground whitespace-pre-wrap ${
@@ -416,7 +618,7 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
           <h2 className="text-lg font-semibold mb-4">Files</h2>
           <div className="space-y-4">
             {/* File Tabs */}
@@ -443,41 +645,127 @@ export default function OrderDetailPage() {
               </button>
             </div>
 
+            {/* Only show Add Document button for client tab */}
+            {activeFileTab === 'client' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button className="bg-primary hover:bg-primary/90 text-white dark:text-black">
+                    Add Document
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 shadow-lg">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Upload Document</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Add documents to this project
+                      </p>
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="grid gap-2">
+                        <Label htmlFor="file">Files</Label>
+                        <Input
+                          id="file"
+                          type="file"
+                          multiple
+                          className="col-span-3 h-9"
+                          accept=".pdf,.doc,.docx,.txt,.rtf,.jpg,.jpeg,.png"
+                          onChange={handleFileUpload}
+                          disabled={uploading}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Supported formats: PDF, DOC, DOCX, TXT, RTF, JPG, PNG
+                        </p>
+                      </div>
+                    </div>
+                    {uploading && (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+
             {/* File Display Area */}
             <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
               {activeFileTab === 'client' ? (
-                order?.file_links && order.file_links.length > 0 ? (
+                order?.documents?.documents.client.length > 0 ? (
                   <div className="space-y-2">
-                    {order.file_links.map((file, index) => (
-                      <a
-                        key={index}
-                        href={file}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                    {order.documents.documents.client.map((group) => (
+                      group.files.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded group"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span>Client Document {index + 1}</span>
-                      </a>
+                          <a
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 flex-1"
+                          >
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            <span>{file.fileName}</span>
+                          </a>
+                          <button
+                            onClick={() => handleRemoveFile(group.date, index)}
+                            className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
                     ))}
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground">No client documents uploaded yet</p>
                 )
               ) : (
-                <p className="text-center text-muted-foreground">No tutor documents available yet</p>
+                order?.documents?.documents.tutor.length > 0 ? (
+                  <div className="space-y-2">
+                    {order.documents.documents.tutor.map((group) => (
+                      group.files.map((file, index) => (
+                        <a
+                          key={index}
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <span>{file.fileName}</span>
+                        </a>
+                      ))
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground">No tutor documents available yet</p>
+                )
               )}
             </div>
           </div>

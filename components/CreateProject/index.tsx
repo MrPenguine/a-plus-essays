@@ -25,6 +25,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { UploadedFile } from '@/lib/types/documents';
+import { backblazeService } from '@/lib/backblaze/file-service';
 
 interface CreateProjectProps {
   initialData?: {
@@ -68,7 +70,7 @@ export default function CreateProject({ initialData, onClose, onSubmit }: Create
     words: 275,
     deadline: '',
     deadlineTime: '12:00',
-    files: [] as File[]
+    files: [] as UploadedFile[]
   });
 
   const [showError, setShowError] = useState(false);
@@ -96,6 +98,51 @@ export default function CreateProject({ initialData, onClose, onSubmit }: Create
     }));
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+
+    const newFiles: UploadedFile[] = [];
+    const maxSize = 15 * 1024 * 1024; // 15MB in bytes
+
+    for (const file of Array.from(e.target.files)) {
+      if (file.size > maxSize) {
+        toast.error(`File ${file.name} is too large. Maximum size is 15MB`);
+        continue;
+      }
+
+      try {
+        // Create a temporary URL for preview
+        const tempUrl = URL.createObjectURL(file);
+        newFiles.push({
+          fileName: file.name,
+          url: tempUrl,
+          file: file
+        });
+      } catch (error) {
+        console.error('Error processing file:', error);
+        toast.error(`Failed to process file ${file.name}`);
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      files: [...prev.files, ...newFiles]
+    }));
+    
+    // Reset input
+    e.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setFormData(prev => {
+      const newFiles = [...prev.files];
+      // Revoke the temporary URL to prevent memory leaks
+      URL.revokeObjectURL(newFiles[index].url);
+      newFiles.splice(index, 1);
+      return { ...prev, files: newFiles };
+    });
+  };
+
   const handleSubmit = async () => {
     if (!formData.title || !formData.assignmentType || !formData.subject) {
       toast.error("Please fill in all required fields");
@@ -107,20 +154,63 @@ export default function CreateProject({ initialData, onClose, onSubmit }: Create
       const pages = countType === 'pages' ? formData.pages : Math.ceil(formData.words / 275);
       const wordCount = countType === 'words' ? formData.words : formData.pages * 275;
 
-      // Ensure description is properly trimmed but preserves line breaks
-      const cleanDescription = formData.description.trim();
+      // Upload files to Backblaze through API route
+      const uploadedFiles: Array<{ fileName: string; url: string }> = [];
+      if (formData.files.length > 0) {
+        for (const fileData of formData.files) {
+          const formData = new FormData();
+          formData.append('file', fileData.file);
+
+          try {
+            const response = await fetch('/api/upload', {
+              method: 'POST',
+              body: formData
+            });
+
+            if (!response.ok) {
+              throw new Error('Upload failed');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+              uploadedFiles.push({
+                fileName: fileData.fileName,
+                url: result.fileUrl
+              });
+            } else {
+              toast.error(`Failed to upload ${fileData.fileName}: ${result.error}`);
+            }
+          } catch (error) {
+            toast.error(`Failed to upload ${fileData.fileName}`);
+            console.error('Upload error:', error);
+          }
+        }
+      }
+
+      // Create document structure with actual URLs
+      const documentStructure = {
+        documents: {
+          client: [{
+            date: new Date().toISOString().split('T')[0],
+            files: uploadedFiles
+          }],
+          tutor: []
+        }
+      };
 
       const orderData = {
         assignment_type: formData.assignmentType,
         title: formData.title,
-        description: cleanDescription, // Use cleaned description
+        description: formData.description.trim(),
         subject: formData.subject,
         level: formData.educationLevel,
         pages,
         wordcount: wordCount,
         deadline: formData.deadline,
-        file_links: [],
+        file_links: uploadedFiles.map(f => f.url), // Use actual uploaded URLs
         userid: auth.currentUser?.uid || '',
+        documents: documentStructure
       };
 
       const orderId = await dbService.createOrder(orderData);
@@ -132,12 +222,19 @@ export default function CreateProject({ initialData, onClose, onSubmit }: Create
         type: formData.assignmentType,
         level: formData.educationLevel,
         pages: pages.toString(),
-        deadline: formData.deadline // Pass ISO string to URL
+        deadline: formData.deadline
       });
 
       // Call onSubmit callback if provided
       onSubmit?.();
       
+      // Clean up blob URLs
+      formData.files.forEach(file => {
+        if (file.url.startsWith('blob:')) {
+          URL.revokeObjectURL(file.url);
+        }
+      });
+
       router.push(`/payment-detail?${params.toString()}`);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -318,12 +415,45 @@ export default function CreateProject({ initialData, onClose, onSubmit }: Create
       </div>
 
       {/* File Attachment */}
-      <div>
-        <Button variant="outline" className="gap-2">
-          <Paperclip className="h-4 w-4" />
-          Attach files
-        </Button>
-        <p className="mt-1 text-xs text-muted-foreground">Up to 15 MB</p>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+            id="file-upload"
+            accept=".pdf,.doc,.docx,.txt,.rtf,.jpg,.jpeg,.png"
+          />
+          <label
+            htmlFor="file-upload"
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <Paperclip className="h-4 w-4" />
+            Attach files
+          </label>
+          <p className="text-xs text-muted-foreground">Up to 15 MB</p>
+        </div>
+
+        {formData.files.length > 0 && (
+          <div className="space-y-2">
+            {formData.files.map((file, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 bg-gray-50 rounded"
+              >
+                <span className="truncate max-w-[200px]">{file.fileName}</span>
+                <button
+                  onClick={() => removeFile(index)}
+                  className="text-red-500 hover:text-red-700"
+                  type="button"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-4">
