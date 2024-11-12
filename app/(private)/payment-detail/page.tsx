@@ -15,14 +15,6 @@ import { useState } from "react";
 import { differenceInDays, differenceInHours } from "date-fns";
 import { collection, query, where, getDocs, updateDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-
-const PRICE_PER_PAGE = {
-  'High School': 8,
-  'Undergraduate': 10,
-  'Masters': 14,
-  'PhD': 15
-};
-
 // Add this function to calculate time remaining
 const getTimeRemaining = (deadline: string) => {
   try {
@@ -63,7 +55,26 @@ interface OrderDetails {
   deadline: string;
   assignment_type: string;
   description?: string;
+  price: number;
+  amount_paid: number;
+  tutorid?: string;
 }
+
+// Add this helper function to get the correct cpp field name
+const getCppFieldName = (level: string): string => {
+  switch (level.toLowerCase()) {
+    case 'high school':
+      return 'highschool_cpp';
+    case 'undergraduate':
+      return 'undergraduate_cpp';
+    case 'masters':
+      return 'masters_cpp';
+    case 'phd':
+      return 'phd_cpp';
+    default:
+      return 'undergraduate_cpp';
+  }
+};
 
 export default function PaymentDetailPage() {
   const router = useRouter();
@@ -89,16 +100,23 @@ export default function PaymentDetailPage() {
 
   // Calculate prices whenever order details or discount changes
   useEffect(() => {
-    if (orderDetails) {
-      const pricePerPage = PRICE_PER_PAGE[orderDetails.level as keyof typeof PRICE_PER_PAGE] || 10;
-      const calculatedTotal = orderDetails.pages * pricePerPage;
-      setTotalPrice(calculatedTotal);
-      
-      const calculatedDiscounted = discountInfo.hasDiscount 
-        ? calculatedTotal * 0.8 // 20% off
-        : calculatedTotal;
-      setDiscountedPrice(calculatedDiscounted);
-    }
+    const calculateRemainingBalance = async () => {
+      if (!orderDetails) return;
+
+      try {
+        const remainingBalance = orderDetails.price - ('amount_paid' in orderDetails ? orderDetails.amount_paid : 0);
+        setTotalPrice(remainingBalance);
+        
+        const calculatedDiscounted = discountInfo.hasDiscount 
+          ? remainingBalance * 0.8 // 20% off
+          : remainingBalance;
+        setDiscountedPrice(calculatedDiscounted);
+      } catch (error) {
+        console.error('Error calculating balance:', error);
+      }
+    };
+
+    calculateRemainingBalance();
   }, [orderDetails, discountInfo]);
 
   // Add effect to check and create user if needed
@@ -201,53 +219,31 @@ export default function PaymentDetailPage() {
   }, [user]);
 
   const handlePaymentSuccess = async (reference: string) => {
-    if (!orderData.orderId || !user) {
-      toast.error("Missing order details");
-      return;
-    }
-
-    setLoading(true);
     try {
       // Create payment record
       await dbService.createPayment({
-        orderId: orderData.orderId,
-        amount: discountedPrice, // Use discounted price
+        orderId: orderDetails.id,
+        amount: discountedPrice,
         paymentId: reference,
         userId: user.uid
       });
 
-      // Update order status
-      await dbService.updateOrder(orderData.orderId, {
-        status: 'in_progress',
-        paymentReference: reference,
-        paymentStatus: 'completed',
-        paymentId: reference,
-        paymentType: 'paystack'
+      // Update order's amount_paid
+      const newAmountPaid = (orderDetails.amount_paid || 0) + discountedPrice;
+      const isFullyPaid = newAmountPaid >= orderDetails.price;
+
+      await dbService.updateOrder(orderDetails.id, {
+        amount_paid: newAmountPaid,
+        status: isFullyPaid ? 'in_progress' : 'partial',
+        paymentStatus: isFullyPaid ? 'completed' : 'partial',
+        paymentReference: reference
       });
 
-      // If discount was applied, update referral record
-      if (discountInfo.hasDiscount) {
-        const referralsRef = collection(db, 'referrals');
-        const q = discountInfo.type === 'referred'
-          ? query(referralsRef, where('referred_uid', '==', user.uid))
-          : query(referralsRef, where('referrer_uid', '==', user.uid));
-        
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          await updateDoc(doc(referralsRef, snapshot.docs[0].id), {
-            [discountInfo.type === 'referred' ? 'referred_redeemed' : 'referrer_redeemed']: true,
-            updatedAt: new Date().toISOString()
-          });
-        }
-      }
-
       toast.success("Payment successful!");
-      router.push(`/orders/${orderData.orderId}`);
+      router.push(`/orders/${orderDetails.id}`);
     } catch (error) {
       console.error('Payment processing error:', error);
       toast.error("Error processing payment");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -376,20 +372,10 @@ export default function PaymentDetailPage() {
               <h2 className="text-lg font-semibold mb-4">Price Details</h2>
               {orderDetails ? (
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Number of pages:</span>
-                    <span className="font-medium">{orderDetails.pages}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Price per page:</span>
-                    <span className="font-medium">
-                      ${PRICE_PER_PAGE[orderDetails.level as keyof typeof PRICE_PER_PAGE].toFixed(2)}
-                    </span>
-                  </div>
                   {discountInfo.hasDiscount && (
                     <div className="flex justify-between items-center text-green-600 dark:text-green-400">
                       <span>Referral Discount (20%):</span>
-                      <span>-${(totalPrice * 0.2).toFixed(2)}</span>
+                      <span>-${((orderDetails?.price || 0) * 0.2).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center pt-2 border-t">
@@ -397,15 +383,15 @@ export default function PaymentDetailPage() {
                     {discountInfo.hasDiscount ? (
                       <div className="text-right">
                         <span className="text-sm line-through text-muted-foreground">
-                          ${totalPrice.toFixed(2)}
+                          ${(orderDetails?.price || 0).toFixed(2)}
                         </span>
                         <span className="text-lg font-bold text-primary ml-2">
-                          ${discountedPrice.toFixed(2)}
+                          ${((orderDetails?.price || 0) * 0.8).toFixed(2)}
                         </span>
                       </div>
                     ) : (
                       <span className="text-lg font-bold text-primary">
-                        ${totalPrice.toFixed(2)}
+                        ${(orderDetails?.price || 0).toFixed(2)}
                       </span>
                     )}
                   </div>
@@ -413,14 +399,6 @@ export default function PaymentDetailPage() {
               ) : (
                 <div className="text-center py-4 text-muted-foreground">
                   Loading price details...
-                </div>
-              )}
-
-              {discountInfo.hasDiscount && (
-                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <p className="text-sm text-green-600 dark:text-green-400">
-                    20% referral discount applied!
-                  </p>
                 </div>
               )}
 
@@ -436,20 +414,13 @@ export default function PaymentDetailPage() {
 
               {/* Payment Button */}
               <PaystackButton
-                amount={discountedPrice}
+                amount={orderDetails ? (discountInfo.hasDiscount ? 
+                  (orderDetails.price * 0.8) : 
+                  orderDetails.price) : 0}
                 onSuccess={handlePaymentSuccess}
                 onClose={handlePaymentClose}
-                disabled={loading}
+                disabled={loading || !orderDetails}
               />
-              
-              {/* Modified button to redirect to specific order */}
-              <Button 
-                onClick={() => router.push(`/orders/${orderData.orderId}`)} 
-                variant="ghost" 
-                className="w-full mt-2 text-black hover:bg-transparent hover:text-black dark:text-white hover:dark:text-white"
-              >
-                Proceed without payment
-              </Button>
             </Card>
           </div>
         </div>

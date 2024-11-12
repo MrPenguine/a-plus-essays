@@ -518,7 +518,7 @@ export default function ChatPage() {
       const pageMatch = displayedMessages.find(m => 
         m.sender === 'user' && m.text.includes('page'))?.text.match(/(\d+)\s*page/);
 
-      // Calculate pages and total price
+      // Calculate pages
       let pages;
       if (wordMatch) {
         const words = parseInt(wordMatch[1]);
@@ -528,9 +528,6 @@ export default function ChatPage() {
       } else {
         pages = 1;
       }
-
-      const pricePerPage = PRICE_PER_PAGE[educationLevel as keyof typeof PRICE_PER_PAGE] || 10;
-      const totalPrice = pages * pricePerPage;
 
       const orderData = {
         assignment_type: searchParams.get('type') || '',
@@ -542,7 +539,8 @@ export default function ChatPage() {
         deadline: displayedMessages.find(m => m.sender === 'user' && m.text.includes('at'))?.text || '',
         file_links: [],
         userid: auth.currentUser?.uid || '',
-        price: totalPrice
+        status: 'pending',
+        paymentStatus: 'pending'
       };
 
       // Save to Firestore

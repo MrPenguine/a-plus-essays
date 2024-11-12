@@ -1,6 +1,7 @@
 import { db } from "./config";
 import { collection, doc, getDoc, setDoc, query, where, getDocs, updateDoc, orderBy } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from './config';
 
 export interface UserData {
   email: string;
@@ -42,6 +43,9 @@ export interface Order {
   originalPrice: number;
   adjustedPrice?: number;
   additionalPaymentNeeded?: number;
+  amount: number;
+  amount_paid: number;
+  tutorid?: string;
 }
 
 const PRICE_PER_PAGE = {
@@ -80,6 +84,86 @@ interface ReferralData {
   createdAt: string;
   updatedAt?: string;
 }
+
+interface Payment {
+  id: string;
+  orderId: string;
+  amount: number;
+  paymentId: string;
+  userId: string;
+  createdAt: string;
+  status: string;
+}
+
+interface OrderDetail {
+  id: string;
+  title: string;
+  status: string;
+  deadline: string;
+  pages: number;
+  level: string;
+  subject: string;
+  description: string;
+  assignment_type: string;
+  wordcount: number;
+  userid: string;
+  createdAt: string;
+  file_links: string[];
+  price: number;
+  paymentStatus: 'pending' | 'partial' | 'completed';
+  originalPrice: number;
+  adjustedPrice?: number;
+  additionalPaymentNeeded?: number;
+  updatedAt?: string;
+  documents?: {
+    documents: {
+      client: Array<{
+        date: string;
+        files: Array<{
+          fileName: string;
+          url: string;
+        }>;
+      }>;
+      tutor: Array<{
+        date: string;
+        files: Array<{
+          fileName: string;
+          url: string;
+        }>;
+      }>;
+    };
+  };
+}
+
+const getPayments = async (orderId: string, userId: string): Promise<Payment[]> => {
+  try {
+    const paymentsRef = collection(db, 'payments');
+    // Query for payments matching both orderId and userId
+    const q = query(
+      paymentsRef,
+      where('orderId', '==', orderId),
+      where('userId', '==', userId)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const payments: Payment[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      payments.push({
+        id: doc.id,
+        ...doc.data()
+      } as Payment);
+    });
+    
+    // Sort by createdAt on client side
+    return payments.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  } catch (error) {
+    console.error('Error getting payments:', error);
+    throw error;
+  }
+};
 
 export const dbService = {
   // Check if user exists
@@ -449,5 +533,39 @@ export const dbService = {
       console.error("Error creating referral record:", error);
       throw error;
     }
-  }
+  },
+
+  getPayments,
+
+  async getTutors() {
+    const tutorsRef = collection(db, 'tutors');
+    const snapshot = await getDocs(tutorsRef);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+
+  async updateOrder(orderId: string, data: Partial<OrderDetail>) {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, {
+      ...data,
+      updatedAt: new Date().toISOString()
+    });
+  },
+
+  async getTutorById(tutorId: string) {
+    try {
+      const tutorsRef = collection(db, 'tutors');
+      const q = query(tutorsRef, where('tutorid', '==', tutorId));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        // Get the first matching document
+        const tutorDoc = querySnapshot.docs[0];
+        return { id: tutorDoc.id, ...tutorDoc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching tutor:', error);
+      return null;
+    }
+  },
 }; 

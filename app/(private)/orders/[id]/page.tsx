@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, MessageCircle, X, ChevronDown, ChevronUp, Pencil } from "lucide-react";
-import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
+import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, parseISO } from "date-fns";
 import { useAuth } from "@/lib/firebase/hooks";
 import { dbService } from "@/lib/firebase/db-service";
 import LoadingState from "./components/LoadingState";
@@ -25,6 +25,20 @@ import { PRICE_PER_PAGE } from "@/lib/constants";
 import PaystackButton from "@/components/paystack";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import Image from "next/image";
+import { generateReceipt } from "@/lib/utils/generateReceipt";
+import Link from 'next/link'
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 interface OrderDetail {
   id: string;
@@ -64,6 +78,10 @@ interface OrderDetail {
       }>;
     };
   };
+  tutorid?: string;
+  tutor_name?: string;
+  amount: number;
+  amount_paid: number;
 }
 interface UploadedFile {
   fileName: string;
@@ -109,9 +127,41 @@ function parseAndValidateDate(dateString: string | undefined | null): Date | nul
   }
 }
 
-function formatDeadline(dateString: string | undefined | null): string {
+function formatDeadline(dateString: string | Date | undefined | null): string {
   if (!dateString) return 'No deadline set';
-  return dateString; // Return the deadline string exactly as it is in the database
+  
+  try {
+    let date: Date;
+    
+    if (typeof dateString === 'string') {
+      // First try parsing as a regular date string
+      date = new Date(dateString);
+      
+      // If that fails, try parsing our custom format
+      if (isNaN(date.getTime())) {
+        const match = dateString.match(/^([A-Z][a-z]+) (\d+)(?:st|nd|rd|th), (\d{4}) at (\d{1,2}):(\d{2}) ([AP]M)$/);
+        if (match) {
+          const [_, month, day, year, hour, minute, ampm] = match;
+          const timeStr = `${month} ${day}, ${year} ${hour}:${minute} ${ampm}`;
+          date = new Date(timeStr);
+        } else {
+          return dateString; // Return original string if we can't parse it
+        }
+      }
+    } else {
+      date = dateString;
+    }
+
+    // Verify we have a valid date before formatting
+    if (isNaN(date.getTime())) {
+      return typeof dateString === 'string' ? dateString : 'Invalid date';
+    }
+
+    return format(date, "MMMM do, yyyy 'at' h:mm a");
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return typeof dateString === 'string' ? dateString : 'Invalid date';
+  }
 }
 
 function getOrdinalSuffix(day: number): string {
@@ -244,6 +294,12 @@ const ASSIGNMENT_TYPES = [
   { value: 'research', label: 'Research Paper' },
   { value: 'thesis', label: 'Thesis' },
   { value: 'coursework', label: 'Coursework' },
+  { value: 'dissertation', label: 'Dissertation' },
+  { value: 'case_study', label: 'Case Study' },
+  { value: 'term_paper', label: 'Term Paper' },
+  { value: 'book_report', label: 'Book Report' },
+  { value: 'article', label: 'Article' },
+  { value: 'presentation', label: 'Presentation' },
   { value: 'other', label: 'Other' }
 ];
 
@@ -258,6 +314,12 @@ const SUBJECTS = [
   'Philosophy',
   'Economics',
   'Marketing',
+  'Law',
+  'Math',
+  'Biology',
+  'Chemistry',
+  'Physics',
+  'Computer Science',
   'Other'
 ];
 
@@ -273,7 +335,50 @@ const getMinDate = (currentDeadline: string) => {
   return deadline > today ? deadline : today;
 };
 
+interface Payment {
+  id: string;
+  orderId: string;
+  amount: number;
+  paymentId: string;
+  userId: string;
+  createdAt: string;
+}
+
+interface PaymentReceipt {
+  isOpen: boolean;
+  payment: Payment | null;
+}
+
+// First, let's add the Tutor interface
+interface Tutor {
+  id: string;
+  tutor_name: string;
+  bio?: string;
+  rating?: number;
+  reviews?: string;
+}
+
+// Add this function at the top level
+const getTutorName = async (tutorId: string): Promise<string> => {
+  try {
+    const tutorsRef = collection(db, 'tutors');
+    const q = query(tutorsRef, where('tutorid', '==', tutorId));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const tutorDoc = querySnapshot.docs[0];
+      const tutorData = tutorDoc.data();
+      return tutorData.tutor_name || 'Unknown Tutor';
+    }
+    return 'Unknown Tutor';
+  } catch (error) {
+    console.error('Error fetching tutor:', error);
+    return 'Error loading tutor';
+  }
+};
+
 export default function OrderDetailPage() {
+  // Move all hooks to the top
   const params = useParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -288,13 +393,21 @@ export default function OrderDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editableFields, setEditableFields] = useState<EditableFields | null>(null);
   const [saving, setSaving] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [receipt, setReceipt] = useState<PaymentReceipt>({
+    isOpen: false,
+    payment: null
+  });
+  const [tutor, setTutor] = useState<Tutor | null>(null);
+  const [tutorName, setTutorName] = useState<string>('');
 
-  // Handle mounting state
+  // Combine all useEffects
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch order data
   useEffect(() => {
     const fetchOrder = async () => {
       if (!user || !params.id) return;
@@ -305,7 +418,30 @@ export default function OrderDetailPage() {
           setError("You don't have permission to view this order");
           return;
         }
+
+        // If order has a tutorid, fetch the tutor name
+        if (orderData.tutorid) {
+          try {
+            const tutorData = await dbService.getTutorById(orderData.tutorid);
+            if (tutorData) {
+              orderData.tutor_name = tutorData.tutor_name;
+            }
+          } catch (error) {
+            console.error('Error fetching tutor:', error);
+          }
+        }
+
         setOrder(orderData as OrderDetail);
+        
+        // Fetch payments...
+        try {
+          const paymentsData = await dbService.getPayments(params.id as string, user.uid);
+          setPayments(paymentsData);
+          setTotalPages(Math.ceil(paymentsData.length / 10));
+        } catch (error) {
+          console.error('Error fetching payments:', error);
+          toast.error('Failed to load payments');
+        }
       } catch (error) {
         console.error("Error fetching order:", error);
         setError("Failed to load order details");
@@ -319,12 +455,82 @@ export default function OrderDetailPage() {
     }
   }, [params.id, user, mounted]);
 
-  // Don't render anything until mounted
-  if (!mounted) {
-    return null;
-  }
+  // Add this effect to fetch tutor name when order changes
+  useEffect(() => {
+    const fetchTutorName = async () => {
+      if (order?.tutorid) {
+        const name = await getTutorName(order.tutorid);
+        setTutorName(name);
+      }
+    };
 
-  if (authLoading || loading) {
+    fetchTutorName();
+  }, [order?.tutorid]);
+
+  // Create PaymentReceipt component outside the main component
+  const PaymentReceipt = ({ payment, order }: { payment: Payment; order: OrderDetail }) => {
+    return (
+      <div className="p-8 max-w-2xl mx-auto bg-white">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/favicon.ico"
+              alt="A+ Essays"
+              width={40}
+              height={40}
+            />
+            <div>
+              <h2 className="font-bold text-xl">A+ Essays</h2>
+              <p className="text-sm text-gray-600">info@aplusessays.com</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <h1 className="text-xl font-bold text-primary mb-2">PAYMENT RECEIPT</h1>
+            <p className="text-sm text-gray-600">Date: {format(new Date(payment.createdAt), "MMMM d, yyyy")}</p>
+            <p className="text-sm text-gray-600">Time: {format(new Date(payment.createdAt), "h:mm a")}</p>
+          </div>
+        </div>
+
+        {/* Order Details */}
+        <div className="mb-8">
+          <p className="text-sm text-gray-600">Order ID: {order.id}</p>
+          <p className="text-sm text-gray-600">Payment ID: {payment.paymentId}</p>
+        </div>
+
+        {/* Payment Details Table */}
+        <table className="w-full mb-8">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-2">Description</th>
+              <th className="text-right py-2">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="py-2">{order.title}</td>
+              <td className="text-right py-2">${payment.amount.toFixed(2)}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr className="border-t">
+              <td className="py-2 font-bold">Total</td>
+              <td className="text-right py-2 font-bold">${payment.amount.toFixed(2)}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Footer */}
+        <div className="text-center text-sm text-gray-600 mt-8">
+          <p>Thank you for your business!</p>
+          <p>For any queries, please contact support at info@aplusessays.com</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Early returns after all hooks
+  if (!mounted || authLoading || loading) {
     return <LoadingState />;
   }
 
@@ -351,6 +557,14 @@ export default function OrderDetailPage() {
       </div>
     );
   }
+
+  // Event handlers
+  const handleViewReceipt = (payment: Payment) => {
+    setReceipt({
+      isOpen: true,
+      payment
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -500,13 +714,31 @@ export default function OrderDetailPage() {
   const handleEditClick = () => {
     if (!order) return;
     
+    let deadline: Date | undefined;
+    try {
+      if (order.deadline) {
+        deadline = new Date(order.deadline);
+        if (isNaN(deadline.getTime())) {
+          // Try parsing our custom format
+          const match = order.deadline.match(/^([A-Z][a-z]+) (\d+)(?:st|nd|rd|th), (\d{4}) at (\d{1,2}):(\d{2}) ([AP]M)$/);
+          if (match) {
+            const [_, month, day, year, hour, minute, ampm] = match;
+            const timeStr = `${month} ${day}, ${year} ${hour}:${minute} ${ampm}`;
+            deadline = new Date(timeStr);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing deadline:', error);
+    }
+    
     setEditableFields({
       title: order.title,
       description: order.description,
       pages: order.pages,
       subject: order.subject,
       assignment_type: order.assignment_type,
-      deadline: new Date(order.deadline)
+      deadline: deadline
     });
     setIsEditing(true);
   };
@@ -550,6 +782,38 @@ export default function OrderDetailPage() {
       toast.error('Failed to update order');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (payment: Payment) => {
+    try {
+      const receiptData = {
+        orderId: order.id,
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        date: format(new Date(payment.createdAt), "MMMM d, yyyy h:mm a"),
+        orderTitle: order.title,
+        orderDetails: {
+          subject: order.subject,
+          type: order.assignment_type,
+          pages: order.pages
+        }
+      };
+
+      const pdfBlob = await generateReceipt(receiptData);
+      const url = URL.createObjectURL(pdfBlob);
+      
+      // Create temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipt-${payment.paymentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      toast.error('Failed to generate receipt');
     }
   };
 
@@ -654,65 +918,22 @@ export default function OrderDetailPage() {
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                {order?.additionalPaymentNeeded && order.additionalPaymentNeeded > 0 && (
+                {order && (order.price - (order.amount_paid || 0)) > 0 && (
                   <div className="flex flex-col items-end">
-                    <p className="text-sm text-muted-foreground">Additional Payment Required:</p>
+                    <p className="text-sm text-muted-foreground">Remaining Balance:</p>
                     <p className="font-medium text-primary">
-                      ${order.additionalPaymentNeeded.toFixed(2)}
+                      ${(order.price - (order.amount_paid || 0)).toFixed(2)}
                     </p>
+                    <Button
+                      onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
+                      className="bg-primary hover:bg-primary/90 text-white dark:text-black"
+                    >
+                      Complete Payment
+                    </Button>
                   </div>
-                )}
-                {order.status === 'pending' ? (
-                  <Button
-                    onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
-                    className="bg-primary hover:bg-primary/90 text-white dark:text-black"
-                  >
-                    Proceed to payment
-                  </Button>
-                ) : (order?.additionalPaymentNeeded && order.additionalPaymentNeeded > 0) && (
-                  <PaystackButton
-                    amount={order.additionalPaymentNeeded}
-                    onSuccess={async (reference: string) => {
-                      try {
-                        // Update order payment status
-                        await dbService.updateOrder(order.id, {
-                          paymentStatus: 'completed',
-                          paymentReference: reference,
-                          additionalPaymentNeeded: 0
-                        });
-
-                        // Create payment record
-                        await dbService.createPayment({
-                          orderId: order.id,
-                          amount: order.additionalPaymentNeeded,
-                          paymentId: reference,
-                          userId: user.uid
-                        });
-
-                        // Refresh order data
-                        const updatedOrder = await dbService.getOrder(order.id);
-                        setOrder(updatedOrder as OrderDetail);
-                        
-                        toast.success('Additional payment completed successfully');
-                      } catch (error) {
-                        console.error('Error processing payment:', error);
-                        toast.error('Failed to process payment');
-                      }
-                    }}
-                    onClose={() => {
-                      toast.error('Payment cancelled');
-                    }}
-                    disabled={false}
-                  />
                 )}
               </div>
             </div>
-            {order?.adjustedPrice && order?.originalPrice && order.adjustedPrice !== order.originalPrice && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Original Price:</span>
-                <span className="font-medium">${order.originalPrice.toFixed(2)}</span>
-              </div>
-            )}
           </div>
         </Card>
 
@@ -797,32 +1018,31 @@ export default function OrderDetailPage() {
 
             <div>
               <p className="text-sm text-muted-foreground">Pages</p>
-              {isEditing ? (
-                <Input
-                  type="number"
-                  min="1"
-                  value={editableFields?.pages}
-                  onChange={(e) => setEditableFields(prev => ({
-                    ...prev!,
-                    pages: parseInt(e.target.value)
-                  }))}
-                  className="w-full"
-                />
-              ) : (
-                <p className="font-medium">{order?.pages}</p>
-              )}
+              <p className="font-medium">{order?.pages}</p>
             </div>
 
             <div>
               <p className="text-sm text-muted-foreground">Words</p>
-              <p className="font-medium">
-                {isEditing ? editableFields?.pages ? editableFields.pages * 275 : 0 : order?.wordcount}
-              </p>
+              <p className="font-medium">{order?.wordcount}</p>
             </div>
 
             <div>
               <p className="text-sm text-muted-foreground">Level</p>
               <p className="font-medium">{order?.level}</p>
+            </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground">Tutor</p>
+              {order?.tutorid ? (
+                <p className="font-medium">{tutorName || 'Loading...'}</p>
+              ) : (
+                <Link 
+                  href={`/orders/${params.id}/choosetutor`}
+                  className="inline-flex items-center px-3 py-1 text-sm bg-primary hover:bg-primary/90 text-white dark:text-black rounded-md transition-colors"
+                >
+                  Assign Tutor
+                </Link>
+              )}
             </div>
 
             <div>
@@ -841,8 +1061,8 @@ export default function OrderDetailPage() {
                   <p className="text-sm text-muted-foreground mb-2">Deadline</p>
                   <p className="font-medium">
                     {isEditing && editableFields?.deadline 
-                      ? format(editableFields.deadline, "MMMM do, yyyy 'at' h:mm a")
-                      : order.deadline}
+                      ? formatDeadline(editableFields.deadline)
+                      : formatDeadline(order.deadline)}
                   </p>
                 </div>
                 {isEditing && (
@@ -1117,6 +1337,97 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </Card>
+
+        <Card className="mt-6 mb-6">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Payments</h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Payment ID</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments
+                  .slice((currentPage - 1) * 10, currentPage * 10)
+                  .map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell>
+                        {format(new Date(payment.createdAt), "MMM d, yyyy h:mm a")}
+                      </TableCell>
+                      <TableCell>{payment.paymentId}</TableCell>
+                      <TableCell className="text-right">
+                        ${payment.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={payment.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'}>
+                          {payment.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadReceipt(payment)}
+                        >
+                          Download Receipt
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+
+            {payments.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground">
+                No payments found
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <span className="py-2 px-3 text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Receipt Dialog */}
+        <Dialog 
+          open={receipt.isOpen} 
+          onOpenChange={(open) => setReceipt(prev => ({ ...prev, isOpen: open }))}
+        >
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Payment Receipt</DialogTitle>
+            </DialogHeader>
+            {receipt.payment && order && (
+              <PaymentReceipt payment={receipt.payment} order={order} />
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Timeline</h2>

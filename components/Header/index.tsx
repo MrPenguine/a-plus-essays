@@ -188,16 +188,18 @@ const Header = () => {
     >
       <div className="relative mx-auto max-w-c-1390 items-center justify-between px-4 md:px-8 xl:flex 2xl:px-0">
         <div className="flex w-full items-center justify-between xl:w-1/4">
-          <Link href="/" className="block w-full py-5">
-            <div className="flex items-center gap-2">
-              <Image 
-                src="/favicon.ico" 
-                alt="A+ Essays"
-                width={32}
-                height={32}
-                style={{ width: '32px', height: '32px' }}
-              />
-              <span className="text-xl font-bold">A+ Essays</span>
+          <Link href="/" className="block py-0">
+            <div className="flex items-center h-[80px]">
+              <div className="h-[76px] relative" style={{ aspectRatio: '2.925' }}>
+                <Image 
+                  src="/favicon.ico" 
+                  alt="A+ Essays"
+                  fill
+                  className="object-contain"
+                  style={{ objectPosition: 'left center' }}
+                  priority
+                />
+              </div>
             </div>
           </Link>
 
