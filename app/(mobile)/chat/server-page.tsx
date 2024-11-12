@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import ChatClientPage from "./client-page";
-
+import { SUBJECTS } from "@/lib/constants";
 export const metadata: Metadata = {
   title: "Chat - A+ Essays",
   description: "Chat with our experts"
@@ -9,13 +9,7 @@ export const metadata: Metadata = {
 async function getInitialData() {
   return {
     welcomeMessage: "Welcome to A+ Essays Chat! How can I help you today?",
-    supportedSubjects: [
-      'English',
-      'Business',
-      'Nursing',
-      'History',
-      'Other'
-    ],
+    supportedSubjects: SUBJECTS,
     educationLevels: [
       'High School',
       'Undergraduate', 

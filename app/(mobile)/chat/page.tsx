@@ -498,7 +498,7 @@ export default function ChatPage() {
 
     const expertResponse: Message = {
       id: Date.now() + 1,
-      text: "Great! We're saving your order details...",
+      text: "Great! We're analyzing your project...",
       sender: 'expert' as const,
       timestamp: new Date()
     };

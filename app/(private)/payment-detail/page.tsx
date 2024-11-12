@@ -104,7 +104,8 @@ export default function PaymentDetailPage() {
       if (!orderDetails) return;
 
       try {
-        const remainingBalance = orderDetails.price - ('amount_paid' in orderDetails ? orderDetails.amount_paid : 0);
+        const totalPaid = (orderDetails.amount_paid || 0) + (orderDetails.discountAmount || 0);
+        const remainingBalance = orderDetails.price - totalPaid;
         setTotalPrice(remainingBalance);
         
         const calculatedDiscounted = discountInfo.hasDiscount 
@@ -219,25 +220,72 @@ export default function PaymentDetailPage() {
   }, [user]);
 
   const handlePaymentSuccess = async (reference: string) => {
+    if (!orderDetails || !user) return;
+
     try {
-      // Create payment record
+      const discountAmount = discountInfo.hasDiscount ? (orderDetails.price * 0.2) : 0;
+
+      // Create payment record with discount info
       await dbService.createPayment({
         orderId: orderDetails.id,
         amount: discountedPrice,
+        discountAmount: discountAmount,
         paymentId: reference,
-        userId: user.uid
+        userId: user.uid,
+        discountType: discountInfo.type || undefined
       });
 
-      // Update order's amount_paid
-      const newAmountPaid = (orderDetails.amount_paid || 0) + discountedPrice;
-      const isFullyPaid = newAmountPaid >= orderDetails.price;
+      // Calculate total amount considering discount
+      const totalPaidAmount = (orderDetails.amount_paid || 0) + discountedPrice + discountAmount;
+      const isFullyPaid = totalPaidAmount >= orderDetails.price;
 
+      // Update order payment status
       await dbService.updateOrder(orderDetails.id, {
-        amount_paid: newAmountPaid,
+        amountPaid: totalPaidAmount,
+        discountAmount: discountAmount,
         status: isFullyPaid ? 'in_progress' : 'partial',
         paymentStatus: isFullyPaid ? 'completed' : 'partial',
         paymentReference: reference
       });
+
+      // Update referral redemption status if discount was used
+      if (discountInfo.hasDiscount && discountInfo.type) {
+        const referralsRef = collection(db, 'referrals');
+        
+        if (discountInfo.type === 'referred') {
+          // Update referred user's redemption
+          const referredQuery = query(
+            referralsRef,
+            where('referred_uid', '==', user.uid),
+            where('referred_redeemed', '==', false)
+          );
+          const referredSnap = await getDocs(referredQuery);
+          
+          if (!referredSnap.empty) {
+            await updateDoc(doc(referralsRef, referredSnap.docs[0].id), {
+              referred_redeemed: true,
+              referred_redemption_date: new Date().toISOString(),
+              referred_order_id: orderDetails.id
+            });
+          }
+        } else if (discountInfo.type === 'referrer') {
+          // Update referrer's redemption
+          const referrerQuery = query(
+            referralsRef,
+            where('referrer_uid', '==', user.uid),
+            where('referrer_redeemed', '==', false)
+          );
+          const referrerSnap = await getDocs(referrerQuery);
+          
+          if (!referrerSnap.empty) {
+            await updateDoc(doc(referralsRef, referrerSnap.docs[0].id), {
+              referrer_redeemed: true,
+              referrer_redemption_date: new Date().toISOString(),
+              referrer_order_id: orderDetails.id
+            });
+          }
+        }
+      }
 
       toast.success("Payment successful!");
       router.push(`/orders/${orderDetails.id}`);
@@ -270,6 +318,26 @@ export default function PaymentDetailPage() {
     };
 
     fetchOrderDetails();
+  }, [orderData.orderId]);
+
+  useEffect(() => {
+    const checkOrder = async () => {
+      if (!orderData.orderId) return;
+
+      try {
+        const orderDoc = await dbService.getOrder(orderData.orderId);
+        
+        // Redirect if no tutor is assigned
+        if (!orderDoc.tutorId) {
+          router.push(`/orders/${orderData.orderId}/choosetutor`);
+        }
+      } catch (error) {
+        console.error('Error checking order:', error);
+        toast.error('Failed to load order details');
+      }
+    };
+
+    checkOrder();
   }, [orderData.orderId]);
 
   if (authLoading) {

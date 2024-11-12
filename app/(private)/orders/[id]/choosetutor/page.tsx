@@ -145,8 +145,8 @@ export default function ChooseTutorPage() {
         const orderData = await dbService.getOrder(params.id as string);
         setOrder(orderData as OrderDetails);
 
-        // If order already has a tutor, redirect to payment
-        if (orderData.tutorid) {
+        // Only redirect to payment if tutor is assigned AND price is set
+        if (orderData.tutorId && orderData.price) {
           router.push(`/payment-detail?orderId=${params.id}`);
           return;
         }
@@ -177,20 +177,15 @@ export default function ChooseTutorPage() {
       // Calculate total price (pages * price per page)
       const totalPrice = order.pages * pricePerPage;
 
-      // Update order with tutor ID
+      // Update order with tutor ID and price
       await dbService.updateOrder(order.id, {
-        tutorid: tutor.tutorid,
-        price: totalPrice // Add the calculated price to the order
-      });
-
-      // Redirect to payment page with necessary parameters
-      const params = new URLSearchParams({
-        orderId: order.id,
         tutorId: tutor.tutorid,
-        price: totalPrice.toString()
+        price: totalPrice,
+        status: 'tutor_assigned'
       });
 
-      router.push(`/payment-detail?${params.toString()}`);
+      // Redirect to payment page
+      router.push(`/payment-detail?orderId=${order.id}`);
     } catch (error) {
       console.error("Error hiring tutor:", error);
       toast.error("Failed to hire tutor");
@@ -265,36 +260,6 @@ export default function ChooseTutorPage() {
     }
   };
 
-  const handleTutorSelect = async (tutorId: string) => {
-    try {
-      // Get tutor's pricing
-      const tutorsRef = collection(db, 'tutors');
-      const q = query(tutorsRef, where('tutorid', '==', tutorId));
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const tutorDoc = querySnapshot.docs[0];
-        const tutorData = tutorDoc.data();
-        const cppFieldName = getCppFieldName(order.level);
-        const pricePerPage = tutorData[cppFieldName] || 10;
-        
-        const totalAmount = order.pages * pricePerPage;
-
-        // Update order with tutor and amount
-        await dbService.updateOrder(order.id, {
-          tutorid: tutorId,
-          amount: totalAmount,
-          amount_paid: 0
-        });
-
-        router.push(`/payment-detail?orderId=${order.id}`);
-      }
-    } catch (error) {
-      console.error('Error assigning tutor:', error);
-      toast.error('Failed to assign tutor');
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-80px)] mt-[80px]">
@@ -305,19 +270,19 @@ export default function ChooseTutorPage() {
 
   return (
     <div className="pt-[80px] min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="flex gap-6 max-w-7xl mx-auto px-4 py-8">
+      <div className="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto px-4 py-8">
         {/* Main Content */}
-        <div className="flex-grow">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Choose an expert for your project</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Sort by</span>
+        <div className="flex-grow order-2 lg:order-1">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h1 className="text-xl sm:text-2xl font-bold">Choose an expert for your project</h1>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className={cn(
-                  "border rounded-md px-2 py-1",
-                  selectStyles // Add the solid background styles
+                  "border rounded-md px-2 py-1 w-full sm:w-auto",
+                  selectStyles
                 )}
               >
                 <option value="most_relevant">Most relevant</option>
@@ -331,26 +296,27 @@ export default function ChooseTutorPage() {
           {/* Tutors List */}
           <div className="space-y-4">
             {getSortedTutors().map((tutor) => (
-              <Card key={tutor.id} className="p-6 bg-white dark:bg-gray-800">
-                <div className="flex gap-6">
-                  <div className="flex-shrink-0">
-                    <Avatar className="h-24 w-24 relative">
+              <Card key={tutor.id} className="p-4 sm:p-6 bg-white dark:bg-gray-800">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                  {/* Tutor Avatar Section */}
+                  <div className="flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-2">
+                    <Avatar className="h-16 w-16 sm:h-24 sm:w-24 relative">
                       <AvatarImage 
                         src={tutor.profile_picture} 
                         alt={tutor.tutor_name}
-                        className="object-cover" // This will maintain aspect ratio while filling the circle
+                        className="object-cover"
                       />
                       <AvatarFallback>{tutor.tutor_name[0]}</AvatarFallback>
                     </Avatar>
-                    <div className="mt-2 space-y-1">
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full block text-center">
+                    <div className="flex flex-row sm:flex-col gap-2 sm:mt-2">
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full text-center">
                         AI free
                       </span>
                       {tutor.mentor && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-xs bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-1 rounded-full block text-center cursor-help">
+                              <span className="text-xs bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-1 rounded-full text-center cursor-help">
                                 MENTOR
                               </span>
                             </TooltipTrigger>
@@ -363,10 +329,11 @@ export default function ChooseTutorPage() {
                     </div>
                   </div>
 
+                  {/* Tutor Info Section */}
                   <div className="flex-grow">
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between gap-4">
                       <div>
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <h2 className="text-lg font-semibold">{tutor.tutor_name}</h2>
                           {tutor.mentor && (
                             <Badge 
@@ -402,7 +369,8 @@ export default function ChooseTutorPage() {
                         </p>
                       </div>
 
-                      <div className="text-right">
+                      {/* Price Section */}
+                      <div className="text-left sm:text-right">
                         <div className="mb-4">
                           <p className="text-sm text-muted-foreground">Price per page</p>
                           <p className="text-2xl font-bold">
@@ -415,7 +383,7 @@ export default function ChooseTutorPage() {
                             </span>
                           </p>
                         </div>
-                        <div className="space-y-2">
+                        <div className="flex flex-col gap-2">
                           <Button 
                             className="w-full bg-[#15171c] hover:bg-[#15171c]/90 text-white"
                             onClick={() => handleHireTutor(tutor)}
@@ -437,9 +405,9 @@ export default function ChooseTutorPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-[300px] space-y-6">
-          {/* Project Details Card - Remove sticky positioning and add solid background */}
-          <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+        <div className="w-full lg:w-[300px] order-1 lg:order-2">
+          {/* Project Details Card */}
+          <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-base">Project details</h2>
               {!isEditing ? (

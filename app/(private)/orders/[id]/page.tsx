@@ -377,8 +377,26 @@ const getTutorName = async (tutorId: string): Promise<string> => {
   }
 };
 
+// Add these interfaces at the top
+interface OrderDetails {
+  id: string;
+  title: string;
+  subject: string;
+  level: string;
+  pages: number;
+  deadline: string;
+  assignment_type: string;
+  description?: string;
+  price: number;
+  amount_paid: number;
+  discountAmount?: number;
+  tutorid?: string;
+  tutorId?: string;
+  paymentStatus?: string;
+}
+
 export default function OrderDetailPage() {
-  // Move all hooks to the top
+  // Move ALL hooks to the top, before any conditional returns
   const params = useParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -402,8 +420,33 @@ export default function OrderDetailPage() {
   });
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [tutorName, setTutorName] = useState<string>('');
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [remainingBalance, setRemainingBalance] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
-  // Combine all useEffects
+  // Move the price calculation effect here, with all other useEffects
+  useEffect(() => {
+    const calculatePrices = () => {
+      if (!order) return;
+
+      // Get the total discount amount
+      const discount = order.discountAmount || 0;
+      setDiscountAmount(discount);
+
+      // Calculate total price including discount
+      const total = order.price;
+      setTotalPrice(total);
+
+      // Calculate remaining balance considering both paid amount and discount
+      const totalPaid = (order.amount_paid || 0) + discount;
+      const remaining = Math.max(0, total - totalPaid);
+      setRemainingBalance(remaining);
+    };
+
+    calculatePrices();
+  }, [order]);
+
+  // All other useEffects go here...
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -529,7 +572,7 @@ export default function OrderDetailPage() {
     );
   };
 
-  // Early returns after all hooks
+  // THEN your conditional returns
   if (!mounted || authLoading || loading) {
     return <LoadingState />;
   }
@@ -817,6 +860,12 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Add this helper function
+  const calculateRemainingBalance = (order: OrderDetail) => {
+    const totalPaid = (order.amount_paid || 0) + (order.discountAmount || 0);
+    return Math.max(0, order.price - totalPaid);
+  };
+
   return (
     <div className="pt-[80px] relative bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Chat Panel - Slides from right */}
@@ -918,11 +967,11 @@ export default function OrderDetailPage() {
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
-                {order && (order.price - (order.amount_paid || 0)) > 0 && (
+                {order && calculateRemainingBalance(order) > 0 && (
                   <div className="flex flex-col items-end">
                     <p className="text-sm text-muted-foreground">Remaining Balance:</p>
                     <p className="font-medium text-primary">
-                      ${(order.price - (order.amount_paid || 0)).toFixed(2)}
+                      ${calculateRemainingBalance(order).toFixed(2)}
                     </p>
                     <Button
                       onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
@@ -1448,6 +1497,32 @@ export default function OrderDetailPage() {
             )}
           </div>
         </Card>
+
+        <div className="price-details">
+          <div className="flex justify-between items-center">
+            <span>Original Price:</span>
+            <span>${order.price.toFixed(2)}</span>
+          </div>
+
+          {order.discountAmount > 0 && (
+            <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+              <span>Discount Applied:</span>
+              <span>-${order.discountAmount.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center">
+            <span>Amount Paid:</span>
+            <span>${(order.amount_paid || 0).toFixed(2)}</span>
+          </div>
+
+          {calculateRemainingBalance(order) > 0 && (
+            <div className="flex justify-between items-center font-bold">
+              <span>Remaining Balance:</span>
+              <span>${calculateRemainingBalance(order).toFixed(2)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
