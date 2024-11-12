@@ -12,6 +12,12 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
+// Only initialize if config is valid
+if (!firebaseConfig.apiKey) {
+  console.error('Missing Firebase configuration');
+  throw new Error('Firebase configuration is required');
+}
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
