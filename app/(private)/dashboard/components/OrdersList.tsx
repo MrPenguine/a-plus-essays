@@ -200,7 +200,9 @@ export default function OrdersList() {
                   >
                     {order.title}
                   </Link>
-                  <span className="font-medium text-sm sm:text-base">${order.price.toFixed(2)}</span>
+                  <span className="font-medium text-sm sm:text-base">
+                    ${(order.price || 0).toFixed(2)}
+                  </span>
                 </div>
 
                 {/* Subject and Type Row */}

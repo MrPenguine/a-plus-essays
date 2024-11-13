@@ -549,23 +549,16 @@ export default function ChatPage() {
       // Add success message
       const successResponse: Message = {
         id: Date.now() + 2,
-        text: "Order saved successfully! Redirecting to payment...",
+        text: "Order saved successfully! Redirecting to choose tutor...",
         sender: 'expert' as const,
         timestamp: new Date()
       };
 
       setDisplayedMessages(prev => [...prev, successResponse]);
 
-      // Redirect after a short delay
+      // Update redirect to only pass orderId
       setTimeout(() => {
-        const params = new URLSearchParams();
-        params.append('orderId', orderId);
-        Object.entries(orderData).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            params.append(key, value.toString());
-          }
-        });
-        router.push(`/payment-detail?${params.toString()}`);
+        router.push(`/orders/choosetutor?orderId=${orderId}`);
       }, 2000);
 
     } catch (error) {

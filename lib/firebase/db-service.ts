@@ -1,5 +1,5 @@
 import { db } from "./config";
-import { collection, doc, getDoc, setDoc, query, where, getDocs, updateDoc, orderBy } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc, query, where, getDocs, updateDoc, orderBy, addDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from './config';
 
@@ -107,6 +107,7 @@ interface OrderDetail {
   assignment_type: string;
   wordcount: number;
   userid: string;
+  tutorid?: string;
   createdAt: string;
   file_links: string[];
   price: number;
@@ -207,31 +208,19 @@ export const dbService = {
     }
   },
 
-  async createOrder(orderData: Partial<Order>): Promise<string> {
+  async createOrder(orderData: any) {
     try {
       const ordersRef = collection(db, 'orders');
-      const orderDoc = doc(ordersRef);
-      const orderId = orderDoc.id;
-
-      // Calculate price based on education level and pages
-      const pricePerPage = PRICE_PER_PAGE[orderData.level as keyof typeof PRICE_PER_PAGE] || 10;
-      const totalPrice = (orderData.pages || 1) * pricePerPage;
-
-      await setDoc(orderDoc, {
+      // Ensure price is set with a default value of 0
+      const orderWithDefaults = {
         ...orderData,
-        orderid: orderId,
-        price: totalPrice,
-        originalPrice: totalPrice,
-        status: 'pending',
-        paymentStatus: 'pending',
-        paymentType: null,
-        paymentId: null,
+        price: orderData.price || 0,
         createdAt: new Date().toISOString()
-      });
-
-      return orderId;
+      };
+      const docRef = await addDoc(ordersRef, orderWithDefaults);
+      return docRef.id;
     } catch (error) {
-      console.error("Error creating order:", error);
+      console.error('Error creating order:', error);
       throw error;
     }
   },
@@ -538,9 +527,17 @@ export const dbService = {
   getPayments,
 
   async getTutors() {
-    const tutorsRef = collection(db, 'tutors');
-    const snapshot = await getDocs(tutorsRef);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    try {
+      const tutorsRef = collection(db, 'tutors');
+      const snapshot = await getDocs(tutorsRef);
+      return snapshot.docs.map(doc => ({ 
+        tutorid: doc.id,
+        ...doc.data() 
+      }));
+    } catch (error) {
+      console.error('Error fetching tutors:', error);
+      throw error;
+    }
   },
 
   async updateOrder(orderId: string, data: Partial<OrderDetail>) {

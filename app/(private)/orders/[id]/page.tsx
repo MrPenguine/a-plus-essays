@@ -82,6 +82,7 @@ interface OrderDetail {
   tutor_name?: string;
   amount: number;
   amount_paid: number;
+  discountAmount?: number;
 }
 interface UploadedFile {
   fileName: string;
@@ -433,13 +434,14 @@ export default function OrderDetailPage() {
       const discount = order.discountAmount || 0;
       setDiscountAmount(discount);
 
-      // Calculate total price including discount
+      // Calculate total price
       const total = order.price;
       setTotalPrice(total);
 
       // Calculate remaining balance considering both paid amount and discount
-      const totalPaid = (order.amount_paid || 0) + discount;
-      const remaining = Math.max(0, total - totalPaid);
+      const amountPaid = order.amount_paid || 0;
+      const effectiveTotalPaid = amountPaid + discount;
+      const remaining = Math.max(0, total - effectiveTotalPaid);
       setRemainingBalance(remaining);
     };
 
@@ -862,8 +864,20 @@ export default function OrderDetailPage() {
 
   // Add this helper function
   const calculateRemainingBalance = (order: OrderDetail) => {
-    const totalPaid = (order.amount_paid || 0) + (order.discountAmount || 0);
-    return Math.max(0, order.price - totalPaid);
+    const amountPaid = order.amount_paid || 0;
+    const discount = order.discountAmount || 0;
+    const effectiveTotalPaid = amountPaid + discount;
+    return Math.max(0, order.price - effectiveTotalPaid);
+  };
+
+  const shouldShowPaymentButton = () => {
+    if (!order) return false;
+    
+    const amountPaid = order.amount_paid || 0;
+    const discount = order.discountAmount || 0;
+    const effectiveTotalPaid = amountPaid + discount;
+    
+    return effectiveTotalPaid < order.price;
   };
 
   return (
@@ -1086,7 +1100,7 @@ export default function OrderDetailPage() {
                 <p className="font-medium">{tutorName || 'Loading...'}</p>
               ) : (
                 <Link 
-                  href={`/orders/${params.id}/choosetutor`}
+                  href={`/orders/choosetutor?orderId=${params.id}`}
                   className="inline-flex items-center px-3 py-1 text-sm bg-primary hover:bg-primary/90 text-white dark:text-black rounded-md transition-colors"
                 >
                   Assign Tutor
@@ -1498,31 +1512,7 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <div className="price-details">
-          <div className="flex justify-between items-center">
-            <span>Original Price:</span>
-            <span>${order.price.toFixed(2)}</span>
-          </div>
-
-          {order.discountAmount > 0 && (
-            <div className="flex justify-between items-center text-green-600 dark:text-green-400">
-              <span>Discount Applied:</span>
-              <span>-${order.discountAmount.toFixed(2)}</span>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center">
-            <span>Amount Paid:</span>
-            <span>${(order.amount_paid || 0).toFixed(2)}</span>
-          </div>
-
-          {calculateRemainingBalance(order) > 0 && (
-            <div className="flex justify-between items-center font-bold">
-              <span>Remaining Balance:</span>
-              <span>${calculateRemainingBalance(order).toFixed(2)}</span>
-            </div>
-          )}
-        </div>
+      
       </div>
     </div>
   );

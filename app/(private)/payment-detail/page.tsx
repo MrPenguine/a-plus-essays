@@ -57,7 +57,12 @@ interface OrderDetails {
   description?: string;
   price: number;
   amount_paid: number;
+  discountAmount?: number;
+  discountType?: 'referrer' | 'referred' | null;
   tutorid?: string;
+  paymentType?: string;
+  paymentStatus?: string;
+  paymentReference?: string;
 }
 
 // Add this helper function to get the correct cpp field name
@@ -104,14 +109,17 @@ export default function PaymentDetailPage() {
       if (!orderDetails) return;
 
       try {
-        const totalPaid = (orderDetails.amount_paid || 0) + (orderDetails.discountAmount || 0);
-        const remainingBalance = orderDetails.price - totalPaid;
-        setTotalPrice(remainingBalance);
+        // Get amount already paid (default to 0 if not exists)
+        const amountAlreadyPaid = orderDetails.amount_paid || 0;
         
-        const calculatedDiscounted = discountInfo.hasDiscount 
-          ? remainingBalance * 0.8 // 20% off
-          : remainingBalance;
-        setDiscountedPrice(calculatedDiscounted);
+        // Calculate discount if applicable
+        const discountAmount = discountInfo.hasDiscount ? (orderDetails.price * 0.2) : 0;
+        
+        // Calculate remaining balance
+        const remainingBalance = orderDetails.price - (amountAlreadyPaid + discountAmount);
+        
+        setTotalPrice(remainingBalance);
+        setDiscountedPrice(remainingBalance); // No need to discount again as it's already included
       } catch (error) {
         console.error('Error calculating balance:', error);
       }
@@ -219,41 +227,68 @@ export default function PaymentDetailPage() {
     checkReferralDiscount();
   }, [user]);
 
+  useEffect(() => {
+    const checkPaymentNeeded = async () => {
+      if (!orderDetails || !user) return;
+
+      const discountAmount = discountInfo.hasDiscount ? (orderDetails.price * 0.2) : 0;
+      const amountAlreadyPaid = orderDetails.amount_paid || 0;
+      const effectiveTotalPaid = amountAlreadyPaid + discountAmount;
+      
+      // If nothing more to pay, redirect to order page
+      if (effectiveTotalPaid >= orderDetails.price) {
+        router.push(`/orders/${orderDetails.id}`);
+      }
+    };
+
+    checkPaymentNeeded();
+  }, [orderDetails, discountInfo, user]);
+
   const handlePaymentSuccess = async (reference: string) => {
     if (!orderDetails || !user) return;
 
     try {
+      // Calculate discount amount if applicable
       const discountAmount = discountInfo.hasDiscount ? (orderDetails.price * 0.2) : 0;
-
-      // Create payment record with discount info
+      
+      // Calculate total amount already paid (default to 0 if amount_paid doesn't exist)
+      const amountAlreadyPaid = orderDetails.amount_paid || 0;
+      
+      // Calculate remaining amount to pay
+      const remainingAmount = orderDetails.price - (amountAlreadyPaid + discountAmount);
+      
+      // Create payment record
       await dbService.createPayment({
         orderId: orderDetails.id,
-        amount: discountedPrice,
-        discountAmount: discountAmount,
+        amount: remainingAmount,
         paymentId: reference,
         userId: user.uid,
-        discountType: discountInfo.type || undefined
+        paymentType: 'paystack'
       });
 
-      // Calculate total amount considering discount
-      const totalPaidAmount = (orderDetails.amount_paid || 0) + discountedPrice + discountAmount;
-      const isFullyPaid = totalPaidAmount >= orderDetails.price;
+      // Calculate new total paid amount
+      const newTotalPaid = amountAlreadyPaid + remainingAmount;
+      
+      // Check if fully paid by comparing total paid + discount against price
+      const effectiveTotalPaid = newTotalPaid + discountAmount;
+      const isFullyPaid = effectiveTotalPaid >= orderDetails.price;
 
-      // Update order payment status
+      // Update order payment status with discount information
       await dbService.updateOrder(orderDetails.id, {
-        amountPaid: totalPaidAmount,
-        discountAmount: discountAmount,
+        amount_paid: newTotalPaid,
         status: isFullyPaid ? 'in_progress' : 'partial',
         paymentStatus: isFullyPaid ? 'completed' : 'partial',
-        paymentReference: reference
+        paymentReference: reference,
+        paymentType: 'paystack',
+        discountAmount: discountAmount,
+        discountType: discountInfo.type || null
       });
 
-      // Update referral redemption status if discount was used
+      // Handle referral discount redemption if applicable
       if (discountInfo.hasDiscount && discountInfo.type) {
         const referralsRef = collection(db, 'referrals');
         
         if (discountInfo.type === 'referred') {
-          // Update referred user's redemption
           const referredQuery = query(
             referralsRef,
             where('referred_uid', '==', user.uid),
@@ -269,7 +304,6 @@ export default function PaymentDetailPage() {
             });
           }
         } else if (discountInfo.type === 'referrer') {
-          // Update referrer's redemption
           const referrerQuery = query(
             referralsRef,
             where('referrer_uid', '==', user.uid),
@@ -327,9 +361,8 @@ export default function PaymentDetailPage() {
       try {
         const orderDoc = await dbService.getOrder(orderData.orderId);
         
-        // Redirect if no tutor is assigned
-        if (!orderDoc.tutorId) {
-          router.push(`/orders/${orderData.orderId}/choosetutor`);
+        if (!orderDoc.tutorid) {
+          router.push(`/orders/choosetutor?orderId=${orderData.orderId}`);
         }
       } catch (error) {
         console.error('Error checking order:', error);

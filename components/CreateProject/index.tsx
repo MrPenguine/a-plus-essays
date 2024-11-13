@@ -151,6 +151,12 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
     setLoading(true);
 
     try {
+      // Ensure user is authenticated
+      if (!auth.currentUser) {
+        toast.error('Please sign in to create a project');
+        return;
+      }
+
       // Create order data from form state
       const orderData = {
         title: formData.title,
@@ -162,17 +168,23 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
         wordcount: countType === 'pages' ? formData.pages * 275 : formData.words,
         deadline: formData.deadline,
         file_links: [],
-        userid: auth.currentUser?.uid,
-        status: 'pending' as const,  // Type assertion to match Order interface
+        userid: auth.currentUser.uid,
+        status: 'pending' as const,
         paymentStatus: 'pending' as const,
-        amount_paid: 0
+        amount_paid: 0,
+        createdAt: new Date().toISOString()
       };
 
+      // Create the order and get the ID
       const orderId = await dbService.createOrder(orderData);
       
       if (orderId) {
         toast.success('Project created successfully');
-        router.push(`/orders/${orderId}/choosetutor`);
+        router.push(`/orders/choosetutor?orderId=${orderId}`);
+        
+        if (onSubmit) {
+          onSubmit();
+        }
       }
     } catch (error) {
       console.error('Error creating project:', error);

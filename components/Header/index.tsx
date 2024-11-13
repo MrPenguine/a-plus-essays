@@ -32,8 +32,10 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
 interface UserProfile {
+  email: string;
+  name: string;
+  balance: number;
   photoURL?: string;
-  email?: string;
 }
 
 const Header = () => {
@@ -54,22 +56,42 @@ const Header = () => {
     setMounted(true);
   }, []);
 
-  // Fetch user profile from Firestore
+  const fetchUserProfile = async (uid: string) => {
+    try {
+      if (!uid) {
+        console.error('No UID provided');
+        return;
+      }
+
+      const userDocRef = doc(db, 'users', uid);
+      const userSnapshot = await getDoc(userDocRef);
+      
+      if (userSnapshot.exists()) {
+        setUserProfile(userSnapshot.data() as UserProfile);
+      } else {
+        console.error('User document not found');
+        await handleLogout();
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      await handleLogout();
+    }
+  };
+
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const checkUser = async () => {
       if (!user) return;
       
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
+      if (!user.uid) {
+        console.error('No user UID found');
+        await handleLogout();
+        return;
       }
+
+      await fetchUserProfile(user.uid);
     };
 
-    fetchUserProfile();
+    checkUser();
   }, [user]);
 
   const handleStickyMenu = () => {
@@ -91,10 +113,13 @@ const Header = () => {
   const handleLogout = async () => {
     try {
       await logout();
+      setUserProfile(null);
       toast.success("Logged out successfully");
       router.push('/auth/signin');
     } catch (error) {
+      console.error('Error logging out:', error);
       toast.error("Error logging out");
+      window.location.href = '/auth/signin';
     }
   };
 
@@ -290,11 +315,13 @@ const Header = () => {
                       </Button>
                     </Link>
                   </li>
-                  <li>
-                    <div className="text-sm font-medium text-black dark:text-white">
-                      Balance: $0.00
-                    </div>
-                  </li>
+                  {userProfile && (
+                    <li>
+                      <div className="text-sm font-medium text-black dark:text-white">
+                        Balance: ${userProfile.balance.toFixed(2)}
+                      </div>
+                    </li>
+                  )}
                 </>
               ) : (
                 <>
