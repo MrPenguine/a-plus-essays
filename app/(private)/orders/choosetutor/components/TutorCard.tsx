@@ -62,9 +62,9 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
         </div>
       )}
 
-      <div className="flex gap-6">
+      <div className="flex flex-col sm:flex-row gap-6">
         {/* Avatar Section */}
-        <div className="relative">
+        <div className="relative mx-auto sm:mx-0">
           <div className="w-32 h-32 relative rounded-full overflow-hidden bg-gray-100">
             <Image
               src={tutor.profilePicture || '/images/placeholder-avatar.jpg'}
@@ -82,10 +82,10 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
 
         {/* Tutor Info */}
         <div className="flex-1">
-          <div className="flex justify-between items-start mb-4">
-            <div>
+          <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start mb-4">
+            <div className="text-center sm:text-left mb-4 sm:mb-0">
               <h3 className="text-xl font-semibold mb-1">{tutor.name}</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
                     <span key={i} className="text-yellow-400">★</span>
@@ -96,30 +96,36 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
                 </span>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-center sm:text-right mb-4 sm:mb-0">
               <p className="text-2xl font-bold text-primary">${tutor.price}</p>
               <p className="text-sm text-muted-foreground">
-                Pay now only ${tutor.costPerPage}
+                Pay now only ${tutor.price/2}
               </p>
             </div>
           </div>
 
-          <p className="text-sm mb-4">{tutor.bio}</p>
+          <div className="flex flex-col sm:flex-row gap-6">
+            <div className="flex-1">
+              <p className="text-sm mb-4">{tutor.bio}</p>
+              <p className="text-sm text-muted-foreground">
+                Completed {tutor.completedProjects} projects related to {tutor.subject} out of {tutor.totalProjects} projects
+              </p>
+            </div>
 
-          <p className="text-sm text-muted-foreground mb-4">
-            Completed {tutor.completedProjects} projects related to {tutor.subject} out of {tutor.totalProjects} projects
-          </p>
-
-          <div className="flex gap-4">
-            <Button 
-              onClick={handleHireExpert}
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-            >
-              HIRE THIS EXPERT
-            </Button>
-            <Button variant="outline" className="flex-1 border-green-500 text-green-500 hover:bg-green-50">
-              CHAT
-            </Button>
+            <div className="flex flex-col gap-2 sm:w-[200px]">
+              <Button 
+                onClick={handleHireExpert}
+                className="w-full bg-green-500 hover:bg-green-600 text-white"
+              >
+                HIRE THIS EXPERT
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full border-green-500 text-green-500 hover:bg-green-50"
+              >
+                CHAT
+              </Button>
+            </div>
           </div>
         </div>
       </div>

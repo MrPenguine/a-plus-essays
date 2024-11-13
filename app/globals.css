@@ -75,6 +75,11 @@
     bg-background/100 backdrop-blur-lg
     px-8 py-5 shadow-solid-13 duration-300 ease-in dark:border-strokedark dark:bg-background/100;
   }
+  /* Update the DialogContent animation for the chat panel */
+  .chat-panel {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 @media (max-width: 1280px) {

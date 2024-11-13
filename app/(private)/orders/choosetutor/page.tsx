@@ -9,6 +9,7 @@ import { InviteFriendsCard } from "./components/InviteFriendsCard";
 import { useEffect, useState } from "react";
 import { dbService } from "@/lib/firebase/db-service";
 import { toast } from "sonner";
+import Link from "next/link";
 
 // Update the tutor interface to match database fields
 interface Tutor {
@@ -136,40 +137,44 @@ export default function ChooseTutorPage() {
   if (!orderId) {
     return (
       <div className="pt-[80px] px-4">
-        <p className="text-center text-red-500">No order ID provided</p>
+        <Card className="pt-[80px] px-4">
+          <p className="text-center text-red-500">No order ID provided</p>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="pt-[80px] px-4">
-      <div className="max-w-6xl mx-auto py-8">
+      <div className="max-w-6xl mx-auto py-4 sm:py-8">
         <button 
-          onClick={() => router.back()}
-          className="flex items-center gap-2 mb-6 text-sm text-muted-foreground hover:text-foreground"
+          onClick={() => router.push(`/orders/${orderId}`)}
+          className="flex items-center gap-2 mb-4 sm:mb-6 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to order
         </button>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content - Tutor List */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6">
-              <h1 className="text-2xl font-bold mb-4">Choose an expert for your project</h1>
-              <p className="text-muted-foreground mb-2">
-                Order #{orderId.slice(0, 8)}
-              </p>
-            </Card>
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-2 lg:order-1">
+           
+              <h1 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Choose an expert for your project</h1>
+              <Link href={`/orders/${orderId}`}>
+                <p className="text-muted-foreground mb-2">
+                  Order #{orderId.slice(0, 8)}
+                </p>
+              </Link>
+            
 
             {/* Loading State */}
             {loading ? (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {[1, 2, 3].map((i) => (
-                  <Card key={i} className="p-6">
-                    <div className="animate-pulse flex gap-6">
-                      <div className="w-32 h-32 bg-gray-200 rounded-full" />
-                      <div className="flex-1 space-y-4">
+                  <Card key={i} className="p-4 sm:p-6">
+                    <div className="animate-pulse flex flex-col sm:flex-row gap-4 sm:gap-6">
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-200 rounded-full mx-auto sm:mx-0" />
+                      <div className="flex-1 space-y-3 sm:space-y-4">
                         <div className="h-4 bg-gray-200 rounded w-3/4" />
                         <div className="h-4 bg-gray-200 rounded w-1/2" />
                         <div className="h-4 bg-gray-200 rounded w-5/6" />
@@ -180,7 +185,7 @@ export default function ChooseTutorPage() {
               </div>
             ) : (
               /* Tutor Cards */
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {tutors.map((tutor) => (
                   <TutorCard 
                     key={tutor.id} 
@@ -193,7 +198,7 @@ export default function ChooseTutorPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6 order-1 lg:order-2">
             <ProjectDetailsCard order={orderDetails} />
             <InviteFriendsCard />
           </div>
