@@ -81,6 +81,12 @@ const getCppFieldName = (level: string): string => {
   }
 };
 
+// Add this interface for payment options
+interface PaymentOption {
+  type: 'full' | 'partial';
+  label: string;
+}
+
 export default function PaymentDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -93,6 +99,7 @@ export default function PaymentDetailPage() {
   });
   const [totalPrice, setTotalPrice] = useState(0);
   const [discountedPrice, setDiscountedPrice] = useState(0);
+  const [selectedPaymentOption, setSelectedPaymentOption] = useState<'full' | 'partial'>('full');
   
   // Get data from URL params
   const orderData = {
@@ -248,32 +255,27 @@ export default function PaymentDetailPage() {
     if (!orderDetails || !user) return;
 
     try {
-      // Calculate discount amount if applicable
       const discountAmount = discountInfo.hasDiscount ? (orderDetails.price * 0.2) : 0;
-      
-      // Calculate total amount already paid (default to 0 if amount_paid doesn't exist)
       const amountAlreadyPaid = orderDetails.amount_paid || 0;
-      
-      // Calculate remaining amount to pay
-      const remainingAmount = orderDetails.price - (amountAlreadyPaid + discountAmount);
+      const currentPaymentAmount = calculatePaymentAmount();
       
       // Create payment record
       await dbService.createPayment({
         orderId: orderDetails.id,
-        amount: remainingAmount,
+        amount: currentPaymentAmount,
         paymentId: reference,
         userId: user.uid,
         paymentType: 'paystack'
       });
 
       // Calculate new total paid amount
-      const newTotalPaid = amountAlreadyPaid + remainingAmount;
+      const newTotalPaid = amountAlreadyPaid + currentPaymentAmount;
       
       // Check if fully paid by comparing total paid + discount against price
       const effectiveTotalPaid = newTotalPaid + discountAmount;
       const isFullyPaid = effectiveTotalPaid >= orderDetails.price;
 
-      // Update order payment status with discount information
+      // Update order payment status
       await dbService.updateOrder(orderDetails.id, {
         amount_paid: newTotalPaid,
         status: isFullyPaid ? 'in_progress' : 'partial',
@@ -373,6 +375,23 @@ export default function PaymentDetailPage() {
     checkOrder();
   }, [orderData.orderId]);
 
+  // Update the calculatePaymentAmount function to take a payment type parameter
+  const calculatePaymentAmount = (paymentType: 'full' | 'partial' = selectedPaymentOption) => {
+    if (!orderDetails) return 0;
+    
+    const discountAmount = discountInfo.hasDiscount ? (orderDetails.price * 0.2) : 0;
+    const amountAlreadyPaid = orderDetails.amount_paid || 0;
+    const remainingAmount = orderDetails.price - (amountAlreadyPaid + discountAmount);
+    
+    // If there's already a payment, only show full remaining amount
+    if (amountAlreadyPaid > 0) {
+      return remainingAmount;
+    }
+    
+    // Return amount based on specified payment type
+    return paymentType === 'full' ? remainingAmount : Math.ceil(remainingAmount * 0.5);
+  };
+
   if (authLoading) {
     return <div className="pt-[80px] px-4">Loading...</div>;
   }
@@ -469,32 +488,99 @@ export default function PaymentDetailPage() {
 
           {/* Right Column - Price Details */}
           <div className="lg:col-span-1">
+            {/* Price Details Card */}
             <Card className="p-6 sticky top-[100px]">
               <h2 className="text-lg font-semibold mb-4">Price Details</h2>
               {orderDetails ? (
                 <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span>Original Price:</span>
+                    <span>${orderDetails.price.toFixed(2)}</span>
+                  </div>
+
                   {discountInfo.hasDiscount && (
                     <div className="flex justify-between items-center text-green-600 dark:text-green-400">
-                      <span>Referral Discount (20%):</span>
-                      <span>-${((orderDetails?.price || 0) * 0.2).toFixed(2)}</span>
+                      <span>Discount (20%):</span>
+                      <span>-${(orderDetails.price * 0.2).toFixed(2)}</span>
                     </div>
                   )}
+
+                  {orderDetails.amount_paid > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span>Already Paid:</span>
+                      <span>-${orderDetails.amount_paid.toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center pt-2 border-t">
                     <span className="font-semibold">Total Price:</span>
-                    {discountInfo.hasDiscount ? (
-                      <div className="text-right">
-                        <span className="text-sm line-through text-muted-foreground">
-                          ${(orderDetails?.price || 0).toFixed(2)}
-                        </span>
-                        <span className="text-lg font-bold text-primary ml-2">
-                          ${((orderDetails?.price || 0) * 0.8).toFixed(2)}
-                        </span>
+                    <span className="text-lg font-bold text-primary">
+                      ${(orderDetails.price - (discountInfo.hasDiscount ? orderDetails.price * 0.2 : 0)).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Only show payment options if no previous payment */}
+                  {(!orderDetails.amount_paid || orderDetails.amount_paid === 0) && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="font-medium mb-3">How would you like to pay?</p>
+                      <div className="space-y-2">
+                        <div
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            selectedPaymentOption === 'full'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-gray-200 hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedPaymentOption('full')}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-4 h-4 border-2 rounded-full border-primary">
+                              {selectedPaymentOption === 'full' && (
+                                <div className="w-2 h-2 rounded-full bg-primary" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">Full payment</p>
+                              <p className="text-sm text-muted-foreground">
+                                ${calculatePaymentAmount('full').toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            selectedPaymentOption === 'partial'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-gray-200 hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedPaymentOption('partial')}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-4 h-4 border-2 rounded-full border-primary">
+                              {selectedPaymentOption === 'partial' && (
+                                <div className="w-2 h-2 rounded-full bg-primary" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">50% Deposit</p>
+                              <p className="text-sm text-muted-foreground">
+                                ${calculatePaymentAmount('partial').toFixed(2)} now
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-lg font-bold text-primary">
-                        ${(orderDetails?.price || 0).toFixed(2)}
+                    </div>
+                  )}
+
+                  {/* Show amount to pay */}
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold">Amount to Pay:</span>
+                      <span className="text-xl font-bold text-primary">
+                        ${calculatePaymentAmount().toFixed(2)}
                       </span>
-                    )}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -515,9 +601,7 @@ export default function PaymentDetailPage() {
 
               {/* Payment Button */}
               <PaystackButton
-                amount={orderDetails ? (discountInfo.hasDiscount ? 
-                  (orderDetails.price * 0.8) : 
-                  orderDetails.price) : 0}
+                amount={calculatePaymentAmount()}
                 onSuccess={handlePaymentSuccess}
                 onClose={handlePaymentClose}
                 disabled={loading || !orderDetails}
