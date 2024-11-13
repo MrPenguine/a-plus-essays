@@ -12,7 +12,7 @@ export function InviteFriendsCard() {
           <p className="text-sm text-muted-foreground mb-4">
             Invite your friends and get a bonus to use on any project.
           </p>
-          <Button className="w-full" asChild>
+          <Button className="w-full bg-customblue text-white text-sm hover:bg-lightblue hover:bg-opacity-90 hover:border-lightblue" asChild>
             <Link href="/dashboard/getbonus">INVITE FRIENDS</Link>
           </Button>
         </div>

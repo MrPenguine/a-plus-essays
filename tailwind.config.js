@@ -10,54 +10,46 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Base colors
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        
-        // Card and form backgrounds
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))"
-        },
-        
-        // Primary colors
+        // Primary
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))"
+          DEFAULT: '#5C59C3',
+          50: '#EEEDFF',
+          100: '#D8D7FF',
+          200: '#B1B0FF',
+          300: '#8A88FF',
+          400: '#6361E6',
+          500: '#5C59C3', // Main primary color
+          600: '#4A47B3',
+          700: '#383594',
+          800: '#262375',
+          900: '#141256',
         },
-
-        // UI element colors
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))"
+        // Secondary colors
+        secondary: {
+          mint: {
+            DEFAULT: '#9AD3CC',
+            light: '#B5E4DE',
+            dark: '#7FB8B1',
+          },
+          beige: {
+            DEFAULT: '#E8CAA2',
+            light: '#F4DFC0',
+            dark: '#D4B184',
+          },
+          gray: {
+            DEFAULT: '#EEEDEA',
+            50: '#FFFFFF',
+            100: '#EEEDEA',
+            200: '#D1D0CD',
+            300: '#B4B3B0',
+            400: '#979693',
+            500: '#7A7976',
+            600: '#5D5C5A',
+            700: '#403F3D',
+            800: '#232221',
+            900: '#060504',
+          },
         },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))"
-        },
-
-        // Semantic colors
-        success: "hsl(var(--success))",
-        warning: "hsl(var(--warning))",
-        error: "hsl(var(--error))",
-
-        // Border and input colors
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-
-        // Custom theme colors
-        stroke: "#EEEEEE",
-        strokedark: "#2D2F40",
-        hoverdark: "#252A42",
-        titlebg: "#ADFFF8",
-        titlebg2: "#FFEAC2",
-        titlebgdark: "#46495A",
-        btndark: "#292E45",
-        blackho: "#2C3149",
-        blacksection: "#1C2136",
-        waterloo: "#757693",
-        manatee: "#999AA1",
       },
       zIndex: {
         1: "1",
@@ -65,7 +57,7 @@ module.exports = {
         999: "999",
       },
       fontFamily: {
-        inter: ["Inter", "sans-serif"],
+        inter: ["CircularStd"],
       },
       fontSize: {
         'regular': ['16px', '26px'],

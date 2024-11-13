@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/firebase/hooks";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import CreateProject from "@/components/CreateProject";
+import { CreateProject } from "@/components/CreateProject";
 import { handleProjectCreation } from "@/lib/firebase/project-service";
 import { toast } from "sonner";
 import { auth } from "@/lib/firebase/config";
@@ -125,32 +125,30 @@ const Hero = () => {
 
   return (
     <section className="relative mt-[80px]">
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 z-0">
         <div 
-          className="absolute inset-0 z-0"
+          className="absolute inset-0"
           style={{
             backgroundImage: 'var(--theme-image, url("/images/hero/hero-light.svg"))',
             backgroundRepeat: 'no-repeat',
             backgroundPosition: 'center',
             backgroundSize: 'cover',
-            opacity: '0.5',
           }}
         />
-        <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/90" />
       </div>
-      
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 lg:py-16 grid md:grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-start">
-        <h1 className="block lg:hidden text-3xl lg:text-4xl xl:text-6xl font-bold text-foreground">
+        <h1 className="block lg:hidden text-3xl lg:text-4xl xl:text-6xl font-bold text-black dark:text-white">
             A-Plus Homework Help For All
           </h1>
         <div className="w-full max-w-md mx-auto lg:ml-auto order-1 lg:order-2">
-          <Card className="bg-card border shadow-lg">
+          <Card className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600 shadow-solid-2">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-xl lg:text-2xl">
+              <CardTitle className="text-xl lg:text-2xl text-secondary-gray-900 dark:text-white">
                 {referralCode ? "Get Started with 20% Off" : "Get Started"}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-secondary-gray-600 dark:text-secondary-gray-300">
                 {referralCode 
                   ? "Create your first order to claim your 20% discount"
                   : "Fill in the details to get help with your assignment"}
@@ -159,15 +157,15 @@ const Hero = () => {
             <CardContent>
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label>Assignment Type</Label>
+                  <Label className="text-black dark:text-white">Assignment Type</Label>
                   <select
                     name="assignmentType"
                     value={formData.assignmentType}
                     onChange={(e) => handleSelectChange(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="w-full rounded-md border border-secondary-gray-200 bg-white dark:bg-gray-900 dark:border-secondary-gray-600 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     required
                   >
-                    <option value="">Select type of assignment</option>
+                    <option value="" >Select type of assignment</option>
                     <option value="essay">Essay</option>
                     <option value="research">Research Paper</option>
                     <option value="thesis">Thesis</option>
@@ -177,11 +175,11 @@ const Hero = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Project Title</Label>
+                  <Label className="text-black dark:text-white">Project Title</Label>
                   <Input 
                     name="projectTitle"
                     placeholder="Enter your project title" 
-                    className="bg-background"
+                    className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:text-white dark:border-secondary-gray-600 focus:ring-primary"
                     value={formData.projectTitle}
                     onChange={handleInputChange}
                     required
@@ -190,24 +188,27 @@ const Hero = () => {
 
                 {!user && (
                   <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label className="text-black dark:text-white">Email</Label>
                     <Input 
                       name="email"
                       type="email"
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="bg-background"
+                      className="bg-background dark:bg-gray-800 dark:text-white dark:border-gray-600"
                       required
                     />
                   </div>
                 )}
 
-                <Button type="submit" className="w-full">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary-600 text-white border-none shadow-none"
+                >
                   {referralCode ? "Get Started with 20% Off" : "Get Started"}
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground">
+                <p className="text-center text-sm text-muted-foreground dark:text-gray-200">
                   {referralCode 
                     ? "Your friend invited you - 20% discount will be applied"
                     : "Writers are ready to help you now"}
@@ -218,52 +219,52 @@ const Hero = () => {
         </div>
 
         <div className="space-y-6 lg:space-y-8 order-2 lg:order-1">
-          <h1 className="hidden lg:block text-3xl lg:text-4xl xl:text-6xl font-bold">
+          <h1 className="hidden lg:block text-3xl lg:text-4xl xl:text-6xl font-bold text-black dark:text-white">
             A-Plus Homework Help For All
           </h1>
           
-          <div className="grid grid-cols-3 lg:flex lg:flex-wrap gap-2 lg:gap-4 text-xs lg:text-base">
-            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-background/80 shadow-sm border">
-              <FileCheck className="w-3 h-3 lg:w-4 lg:h-4 text-success" />
-              <span>AI free content</span>
+          <div className="grid grid-cols-3 lg:flex lg:flex-wrap gap-2 lg:gap-4 text-xs lg:text-base ">
+            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-white shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
+              <FileCheck className="w-3 h-3 lg:w-4 lg:h-4 text-primary" />
+              <span className="text-secondary-gray-600 dark:text-white">AI free content</span>
             </div>
-            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-background/80 shadow-sm border">
-              <Check className="w-3 h-3 lg:w-4 lg:h-4 text-success" />
-              <span>Plagiarism Free</span>
+            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-white shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
+              <Check className="w-3 h-3 lg:w-4 lg:h-4 text-primary" />
+              <span className="text-secondary-gray-600 dark:text-white">Plagiarism Free</span>
             </div>
-            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-background/80 shadow-sm border">
-              <User className="w-3 h-3 lg:w-4 lg:h-4 text-success" />
-              <span>Top Writers</span>
+            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-white shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
+              <User className="w-3 h-3 lg:w-4 lg:h-4 text-primary" />
+              <span className="text-secondary-gray-600 dark:text-white">Top Writers</span>
             </div>
-            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-background/80 shadow-sm border">
-              <Clock className="w-3 h-3 lg:w-4 lg:h-4 text-success" />
-              <span>Money back</span>
+            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-white shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
+              <Clock className="w-3 h-3 lg:w-4 lg:h-4 text-primary" />
+              <span className="text-secondary-gray-600 dark:text-white">Money back</span>
             </div>
-            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-background/80 shadow-sm border">
-              <FileCheck className="w-3 h-3 lg:w-4 lg:h-4 text-success" />
-              <span>Confidential</span>
+            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-white shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
+              <FileCheck className="w-3 h-3 lg:w-4 lg:h-4 text-primary" />
+              <span className="text-secondary-gray-600 dark:text-white">Confidential</span>
             </div>
-            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-background/80 shadow-sm border">
-              <Headphones className="w-3 h-3 lg:w-4 lg:h-4 text-success" />
-              <span>24/7 Support</span>
+            <div className="flex items-center gap-1.5 py-1.5 px-2 lg:py-2 lg:px-4 rounded-full bg-white shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
+              <Headphones className="w-3 h-3 lg:w-4 lg:h-4 text-primary" />
+              <span className="text-secondary-gray-600 dark:text-white">24/7 Support</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between lg:justify-start gap-2 lg:gap-6 bg-background/80 p-2 lg:p-4 rounded-lg shadow-sm border mt-4 lg:mt-0 text-xs lg:text-base">
+          <div className="flex items-center justify-between lg:justify-start gap-2 lg:gap-6 bg-white p-2 lg:p-4 rounded-lg shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
             <div className="flex items-center gap-1 lg:gap-2">
               <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-warning text-warning" />
-              <span className="font-semibold">4.8</span>
-              <span className="text-xs lg:text-sm text-muted-foreground">Review Centre</span>
+              <span className="font-semibold text-secondary-gray-800 dark:text-white">4.8</span>
+              <span className="text-xs lg:text-sm text-secondary-gray-500">Review Centre</span>
             </div>
             <div className="flex items-center gap-1 lg:gap-2">
               <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-warning text-warning" />
-              <span className="font-semibold">4.7</span>
-              <span className="text-xs lg:text-sm text-muted-foreground">Sitejabber</span>
+              <span className="font-semibold text-secondary-gray-800 dark:text-white">4.7</span>
+              <span className="text-xs lg:text-sm text-secondary-gray-500">Sitejabber</span>
             </div>
             <div className="flex items-center gap-1 lg:gap-2">
               <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-warning text-warning" />
-              <span className="font-semibold">4.7</span>
-              <span className="text-xs lg:text-sm text-muted-foreground">Reviews.io</span>
+              <span className="font-semibold text-secondary-gray-800 dark:text-white">4.7</span>
+              <span className="text-xs lg:text-sm text-secondary-gray-500">Reviews.io</span>
             </div>
           </div>
         </div>

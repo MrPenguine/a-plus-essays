@@ -16,7 +16,7 @@ import Testimonial from "@/components/Testimonial";
 export const metadata: Metadata = {
   title: "A+ Essays | Essay Writing by Professionals",
   description: "Professional Essay Writing Services",
-  // other metadata
+  
 };
 
 export default function Home() {

@@ -97,7 +97,7 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
               </div>
             </div>
             <div className="text-center sm:text-right mb-4 sm:mb-0">
-              <p className="text-2xl font-bold text-primary">${tutor.price}</p>
+              <p className="text-2xl font-bold text-primary"><span className="text-sm">price </span>${tutor.price}</p>
               <p className="text-sm text-muted-foreground">
                 Pay now only ${tutor.price/2}
               </p>
@@ -115,13 +115,13 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
             <div className="flex flex-col gap-2 sm:w-[200px]">
               <Button 
                 onClick={handleHireExpert}
-                className="w-full bg-green-500 hover:bg-green-600 text-white"
+                className="w-full bg-customblue hover:bg-lightblue text-white text-sm hover:bg-opacity-90 hover:border-lightblue"
               >
                 HIRE THIS EXPERT
               </Button>
               <Button 
                 variant="outline" 
-                className="w-full border-green-500 text-green-500 hover:bg-green-50"
+                className="w-full border-customblue text-customblue"
               >
                 CHAT
               </Button>

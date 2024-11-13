@@ -970,7 +970,7 @@ export default function OrderDetailPage() {
                     </p>
                     <Button
                       onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
-                      className="bg-primary hover:bg-primary/90 text-white dark:text-black"
+                      className="bg-customblue hover:bg-lightblue text-white text-sm hover:bg-opacity-90 hover:border-lightblue"
                     >
                       Complete Payment
                     </Button>
@@ -1217,7 +1217,7 @@ export default function OrderDetailPage() {
                   <Button
                     variant="ghost"
                     onClick={() => setShowFullDescription(!showFullDescription)}
-                    className="mt-2 text-primary hover:text-primary/90"
+                    className="mt-2 text-customblue hover:text-lightblue"
                   >
                     {showFullDescription ? (
                       <div className="flex items-center gap-2">

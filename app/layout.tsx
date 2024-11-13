@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "A+ Essays | Essay Writing by Professionals",
@@ -12,8 +13,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
-      <body suppressHydrationWarning>
+      <body 
+        className="relative z-1 font-inter text-regular font-normal text-secondary-gray-500"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
