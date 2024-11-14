@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, arrayUni
 import { useAuth } from "@/lib/firebase/hooks";
 import { toast } from "react-hot-toast";
 import { dbService } from "@/lib/firebase/db-service";
+import { useChatNotifications } from '@/hooks/useChatNotifications';
 
 interface OrderChatProps {
   orderid: string;
@@ -60,6 +61,17 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
   // Add state for tutor data
   const [tutorData, setTutorData] = useState<TutorData | null>(null);
 
+  // Add optimistic updates state
+  const [pendingMessages, setPendingMessages] = useState<Array<{
+    message: string;
+    sender: string;
+    timestamp: string;
+    pending?: boolean;
+  }>>([]);
+
+  // Add loading state
+  const [loadingChats, setLoadingChats] = useState(true);
+
   // Add effect to fetch tutor data
   useEffect(() => {
     const fetchTutorData = async (tutorId: string) => {
@@ -81,18 +93,19 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     }
   }, [tutorid]);
 
-  // Fetch active orders with tutors assigned
+  // Modify the fetchActiveOrders function
   useEffect(() => {
     const fetchActiveOrders = async () => {
       if (!user || chatType !== 'active') return;
 
+      setLoadingChats(true); // Set loading to true when starting fetch
       try {
         const ordersRef = collection(db, 'orders');
         const q = query(
           ordersRef, 
           where('userid', '==', user.uid),
           where('tutorid', '!=', ''),
-          where('status', 'in', ['pending', 'in_progress'])
+          where('status', 'in', ['pending', 'in_progress', 'partial'])
         );
         
         const querySnapshot = await getDocs(q);
@@ -101,27 +114,37 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
         for (const doc of querySnapshot.docs) {
           const data = doc.data();
           if (data.tutorid) {
-            // Fetch tutor data for each order
             const tutorData = await dbService.getTutorById(data.tutorid);
-            orders.push({
+            const order = {
               id: doc.id,
               title: data.title.substring(0, 20) + (data.title.length > 20 ? '...' : ''),
               tutorid: data.tutorid,
               tutor_name: tutorData?.tutor_name || 'Expert',
               profile_picture: tutorData?.profile_picture || '/default-avatar.png',
               status: data.status
-            });
+            };
+            
+            if (doc.id === orderid) {
+              orders.unshift({
+                ...order,
+                title: `${order.title} -- Active Chat`
+              });
+            } else {
+              orders.push(order);
+            }
           }
         }
 
         setActiveOrders(orders);
       } catch (error) {
         console.error('Error fetching active orders:', error);
+      } finally {
+        setLoadingChats(false); // Set loading to false when done
       }
     };
 
     fetchActiveOrders();
-  }, [user, chatType]);
+  }, [user, chatType, orderid]);
 
   // Modified fetch messages function
   useEffect(() => {
@@ -153,14 +176,21 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     fetchMessages();
   }, [orderid]);
 
+  // Modified handleSendMessage function with optimistic updates
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
 
     const messageData = {
       message: newMessage.trim(),
       sender: user.uid,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      pending: true
     };
+
+    // Optimistically add message to UI
+    setMessages(prev => [...prev, messageData]);
+    setPendingMessages(prev => [...prev, messageData]);
+    setNewMessage(''); // Clear input immediately
 
     try {
       const messagesRef = collection(db, 'messages');
@@ -168,20 +198,21 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        // Create new message document
         await addDoc(messagesRef, {
           orderid,
           messages: [messageData]
         });
       } else {
-        // Update existing message document
         const messageDoc = querySnapshot.docs[0];
         await updateDoc(messageDoc.ref, {
-          messages: arrayUnion(messageData)
+          messages: arrayUnion({ ...messageData, pending: undefined })
         });
       }
 
-      // Create or update notification for recipient
+      // Remove from pending after successful save
+      setPendingMessages(prev => prev.filter(msg => msg.timestamp !== messageData.timestamp));
+
+      // Handle notifications
       const recipientId = selectedOrder?.tutorid || tutorid;
       if (recipientId) {
         const notificationsRef = collection(db, 'notifications');
@@ -215,20 +246,51 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
           });
         }
       }
-
-      setNewMessage('');
-      const updatedMessages = [...messages, messageData];
-      setMessages(updatedMessages);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
+      // Remove failed message from UI
+      setMessages(prev => prev.filter(msg => msg.timestamp !== messageData.timestamp));
+      setPendingMessages(prev => prev.filter(msg => msg.timestamp !== messageData.timestamp));
     }
   };
 
-  const handleOrderSelect = (order: ChatOrder) => {
+  // Modified handleOrderSelect to clear messages before loading new ones
+  const handleOrderSelect = async (order: ChatOrder) => {
+    setMessages([]);
     setSelectedOrder(order);
     setShowChatList(false);
+    
+    try {
+      await markMessagesAsRead(order.id);
+      const messagesRef = collection(db, 'messages');
+      const q = query(
+        messagesRef,
+        where('orderid', '==', order.id)
+      );
+
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const messageDoc = querySnapshot.docs[0];
+        const messageData = messageDoc.data();
+        const sortedMessages = messageData.messages.sort((a: any, b: any) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        setMessages(sortedMessages);
+      }
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
+      toast.error('Failed to load chat messages');
+    }
   };
+
+  // Add effect to clear messages when going back to chat list
+  useEffect(() => {
+    if (showChatList) {
+      setMessages([]);
+      setSelectedOrder(null);
+    }
+  }, [showChatList]);
 
   // Add useEffect to mark messages as read when chat is opened
   useEffect(() => {
@@ -259,11 +321,23 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     markNotificationsAsRead();
   }, [user, orderid]);
 
-  // Add this to handle back navigation
+  // Modified handleBack function
   const handleBack = () => {
+    setMessages([]); // Clear messages before showing chat list
     setShowChatList(true);
     setSelectedOrder(null);
   };
+
+  // Add effect to clear messages when component unmounts
+  useEffect(() => {
+    return () => {
+      setMessages([]);
+      setSelectedOrder(null);
+    };
+  }, []);
+
+  // Add to existing state
+  const { chatNotifications, markMessagesAsRead } = useChatNotifications();
 
   return (
     <>
@@ -298,7 +372,22 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
 
                 {/* Chat List */}
                 <div className="flex-1 overflow-y-auto">
-                  {activeOrders.length > 0 ? (
+                  {loadingChats ? (
+                    <div className="space-y-4 p-4">
+                      {[1, 2, 3].map((i) => (
+                        <div 
+                          key={i} 
+                          className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-800 animate-pulse"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : activeOrders.length > 0 ? (
                     activeOrders.map((order) => (
                       <div
                         key={order.id}
@@ -319,10 +408,15 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                             {order.tutor_name.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
+                        <div className="flex-1">
                           <h3 className="font-medium">{order.title}</h3>
                           <p className="text-sm text-gray-500">#{order.id.slice(0, 8)}</p>
                         </div>
+                        {chatNotifications[order.id] > 0 && (
+                          <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
+                            {chatNotifications[order.id]}
+                          </span>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -381,9 +475,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                       <div
                         key={index}
                         className={`mb-4 ${
-                          msg.sender === user?.uid
-                            ? 'ml-auto text-right'
-                            : 'mr-auto'
+                          msg.sender === user?.uid ? 'ml-auto text-right' : 'mr-auto'
                         }`}
                       >
                         <div
@@ -391,9 +483,12 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                             msg.sender === user?.uid
                               ? 'bg-primary text-white'
                               : 'bg-gray-100 dark:bg-gray-800'
-                          }`}
+                          } ${msg.pending ? 'opacity-70' : ''}`}
                         >
                           {msg.message}
+                          {msg.pending && (
+                            <span className="ml-2 text-xs">●</span>
+                          )}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           {new Date(msg.timestamp).toLocaleTimeString()}

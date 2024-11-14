@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Settings, Paperclip, Calendar, Users } from "lucide-react";
+import { User, LogOut, Settings, Paperclip, Calendar, Users, Bell } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -33,6 +33,7 @@ import { db } from "@/lib/firebase/config";
 import { dbService } from '@/lib/firebase/db-service';
 import NotificationBadge from "@/components/Notifications/NotificationBadge";
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
+import { useChatNotifications } from '@/hooks/useChatNotifications';
 
 interface UserProfile {
   email: string;
@@ -56,6 +57,7 @@ const Header = () => {
     email: ""
   });
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { chatNotifications } = useChatNotifications();
 
   useEffect(() => {
     setMounted(true);
@@ -222,6 +224,9 @@ const Header = () => {
     };
   };
 
+  // Calculate total unread messages
+  const totalUnreadMessages = Object.values(chatNotifications).reduce((acc, curr) => acc + curr, 0);
+
   return (
     <header
       className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 ${
@@ -384,9 +389,58 @@ const Header = () => {
               )}
             </button>
 
+            {user && (
+              <>
+                <div className="relative">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="relative">
+                        <Bell className="h-5 w-5" />
+                        {totalUnreadMessages > 0 && (
+                          <div className="absolute -top-2 -right-2 flex items-center justify-center">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                              {totalUnreadMessages}
+                            </span>
+                          </div>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0">
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {Object.entries(chatNotifications).length > 0 ? (
+                          Object.entries(chatNotifications).map(([orderId, count]) => (
+                            <div
+                              key={orderId}
+                              onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
+                            >
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                                  {count}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                Click to view messages
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-center py-4 text-gray-500">No new messages</p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <NotificationBadge />
+              </>
+            )}
+
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
                       <AvatarImage 
@@ -428,6 +482,7 @@ const Header = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </>
             ) : (
               <div className="flex items-center gap-6">
                 <Link href="/auth/signin">

@@ -43,6 +43,7 @@ import { SUBJECTS, ASSIGNMENT_TYPES } from "@/lib/constants";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Send } from "lucide-react";
 import OrderChat from "@/components/OrderChat/page";
+import { useChatNotifications } from '@/hooks/useChatNotifications';
 
 interface OrderDetail {
   id: string;
@@ -416,6 +417,10 @@ export default function OrderDetailPage() {
   const [totalPrice, setTotalPrice] = useState(0);
   const [remainingBalance, setRemainingBalance] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const { chatNotifications } = useChatNotifications();
+
+  // Get unread count for this order
+  const unreadCount = chatNotifications[params.id as string] || 0;
 
   // All useEffects should be grouped together
   useEffect(() => {
@@ -888,19 +893,33 @@ export default function OrderDetailPage() {
 
   return (
     <div className="pt-[80px] relative bg-gray-50 dark:bg-gray-900 min-h-screen">
-      {/* Chat Panel - Slides from right */}
+      {/* Floating Chat Button */}
+      <button
+        onClick={() => setShowChat(true)}
+        className="fixed bottom-6 right-6 p-4 bg-primary hover:bg-primary/90 text-white rounded-full shadow-lg flex items-center gap-2 z-50"
+      >
+        <MessageCircle className="h-6 w-6" />
+        {unreadCount > 0 && (
+          <div className="absolute -top-2 -right-2 flex items-center justify-center">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+              {unreadCount}
+            </span>
+          </div>
+        )}
+      </button>
+
+      {/* Chat Component */}
       {showChat && (
         <OrderChat 
-          orderid={order.id} 
+          orderid={params.id as string} 
           onClose={() => setShowChat(false)} 
-          tutorid={order.tutorid || ''} 
+          tutorid={order?.tutorid || ''} 
           tutorname={tutorName || ''}
           profile_pic={tutorProfilePic || 'default-avatar.png'}
-          title={order.title}
-          chatType={order.tutorid ? 'active' : 'bidding'}
+          title={order?.title}
+          chatType={order?.tutorid ? 'active' : 'bidding'}
         />
       )}
-          
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -913,17 +932,26 @@ export default function OrderDetailPage() {
           Back to orders
         </button>
 
-        {/* Modified Order Header - With chat button */}
+        {/* Modified Order Header - With chat button and notification badge */}
         <div className="flex flex-col space-y-2 mb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">{order?.title}</h1>
-            <Button
-              onClick={() => setShowChat(true)}
-              className="flex items-center gap-2 shadow-lg rounded-full px-4 bg-primary hover:bg-primary/90 text-white dark:text-black"
-            >
-              <span className="text-sm font-primary text-white">Open Chat</span>
-              <MessageCircle className="h-5 w-5 text-white" />
-            </Button>
+            <div className="relative">
+              <Button
+                onClick={() => setShowChat(true)}
+                className="flex items-center gap-2 shadow-lg rounded-full px-4 bg-primary hover:bg-primary/90 text-white"
+              >
+                <span className="text-sm font-primary text-white">Open Chat</span>
+                <MessageCircle className="h-5 w-5 text-white" />
+              </Button>
+              {unreadCount > 0 && (
+                <div className="absolute -top-2 -right-2 flex items-center justify-center">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                    {unreadCount}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center">
             <p className="text-sm text-muted-foreground">
