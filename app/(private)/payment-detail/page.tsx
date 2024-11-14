@@ -600,13 +600,19 @@ export default function PaymentDetailPage() {
               </div>
 
               {/* Payment Button */}
-              <PaystackButton
-                amount={calculatePaymentAmount()}
+              <div className="text-white">
+                <PaystackButton
+                  amount={calculatePaymentAmount()}
                 onSuccess={handlePaymentSuccess}
                 onClose={handlePaymentClose}
-                disabled={loading || !orderDetails}
-              />
+                  disabled={loading || !orderDetails}
+                />
+              </div>
+              <div className="flex justify-center items-center mt-4">
+                <p onClick={() => router.push(`/orders/${orderData.orderId}`)} className="text-primary cursor-pointer underline">Continue without payment</p>
+              </div>
             </Card>
+            
           </div>
         </div>
       </div>

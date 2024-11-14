@@ -22,7 +22,7 @@ const SingleFeature = ({ feature }: { feature: Feature }) => {
       whileInView="visible"
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
-      className="animate_top z-40 rounded-lg border border-secondary-gray-100 bg-white p-7.5 shadow-solid-3 transition-all hover:shadow-solid-4 dark:bg-blacksection dark:hover:hoverdark dark:border-secondary-gray-600 xl:p-12.5"
+      className="animate_top z-40 rounded-lg border border-secondary-gray-100 bg-white p-7.5 shadow-solid-3 transition-all hover:shadow-solid-4 dark:bg-gray-800 dark:shadow-solid-4 dark:hover:shadow-solid-5 dark:border-secondary-gray-800 xl:p-12.5"
     >
       <div className="relative flex h-16 w-16 items-center justify-center rounded-[4px] bg-primary">
         <Image src={icon} width={36} height={36} alt={title} />

@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/firebase/hooks";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CreateProject } from "@/components/CreateProject";
 import { handleProjectCreation } from "@/lib/firebase/project-service";
 import { toast } from "sonner";
 import { auth } from "@/lib/firebase/config";
@@ -143,7 +142,7 @@ const Hero = () => {
             A-Plus Homework Help For All
           </h1>
         <div className="w-full max-w-md mx-auto lg:ml-auto order-1 lg:order-2">
-          <Card className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600 shadow-solid-2">
+          <Card className="bg-white border border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-800">
             <CardHeader className="space-y-1">
               <CardTitle className="text-xl lg:text-2xl text-secondary-gray-900 dark:text-white">
                 {referralCode ? "Get Started with 20% Off" : "Get Started"}
@@ -157,7 +156,7 @@ const Hero = () => {
             <CardContent>
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label className="text-black dark:text-white">Assignment Type</Label>
+                  <Label className="text-secondary-gray-900 dark:text-white">Assignment Type</Label>
                   <select
                     name="assignmentType"
                     value={formData.assignmentType}
@@ -175,7 +174,7 @@ const Hero = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-black dark:text-white">Project Title</Label>
+                  <Label className="text-secondary-gray-900 dark:text-white">Project Title</Label>
                   <Input 
                     name="projectTitle"
                     placeholder="Enter your project title" 
@@ -188,14 +187,14 @@ const Hero = () => {
 
                 {!user && (
                   <div className="space-y-2">
-                    <Label className="text-black dark:text-white">Email</Label>
+                    <Label className="text-secondary-gray-900 dark:text-white">Email</Label>
                     <Input 
                       name="email"
                       type="email"
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="bg-background dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                      className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:text-white dark:border-secondary-gray-600 focus:ring-primary"
                       required
                     />
                   </div>
@@ -203,12 +202,12 @@ const Hero = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-primary hover:bg-primary-600 text-white border-none shadow-none"
+                  className="w-full bg-primary hover:bg-primary-600 text-white"
                 >
                   {referralCode ? "Get Started with 20% Off" : "Get Started"}
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground dark:text-gray-200">
+                <p className="text-center text-sm text-secondary-gray-600 dark:text-secondary-gray-300">
                   {referralCode 
                     ? "Your friend invited you - 20% discount will be applied"
                     : "Writers are ready to help you now"}
@@ -252,17 +251,17 @@ const Hero = () => {
 
           <div className="flex items-center justify-between lg:justify-start gap-2 lg:gap-6 bg-white p-2 lg:p-4 rounded-lg shadow-solid-2 border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-600">
             <div className="flex items-center gap-1 lg:gap-2">
-              <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-warning text-warning" />
-              <span className="font-semibold text-secondary-gray-800 dark:text-white">4.8</span>
+              <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-yellow-300 text-yellow-300" />
+              <span className="font-semibold text-secondary-gray-800 dark:text-white ">4.8</span>
               <span className="text-xs lg:text-sm text-secondary-gray-500">Review Centre</span>
             </div>
             <div className="flex items-center gap-1 lg:gap-2">
-              <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-warning text-warning" />
+              <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-yellow-300 text-yellow-300" />
               <span className="font-semibold text-secondary-gray-800 dark:text-white">4.7</span>
               <span className="text-xs lg:text-sm text-secondary-gray-500">Sitejabber</span>
             </div>
             <div className="flex items-center gap-1 lg:gap-2">
-              <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-warning text-warning" />
+              <Star className="w-4 h-4 lg:w-5 lg:h-5 fill-yellow-300 text-yellow-300" />
               <span className="font-semibold text-secondary-gray-800 dark:text-white">4.7</span>
               <span className="text-xs lg:text-sm text-secondary-gray-500">Reviews.io</span>
             </div>

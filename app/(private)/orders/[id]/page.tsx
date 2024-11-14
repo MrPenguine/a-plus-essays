@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, MessageCircle, X, ChevronDown, ChevronUp, Pencil } from "lucide-react";
@@ -42,6 +42,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { SUBJECTS, ASSIGNMENT_TYPES } from "@/lib/constants";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Send } from "lucide-react";
+import OrderChat from "@/components/OrderChat/page";
 
 interface OrderDetail {
   id: string;
@@ -328,6 +329,7 @@ interface Tutor {
   bio?: string;
   rating?: number;
   reviews?: string;
+  profile_picture?: string;
 }
 
 // Add this function at the top level
@@ -346,6 +348,24 @@ const getTutorName = async (tutorId: string): Promise<string> => {
   } catch (error) {
     console.error('Error fetching tutor:', error);
     return 'Error loading tutor';
+  }
+};
+
+const getTutorProfilePic = async (tutorId: string): Promise<string> => {
+  try {
+    const tutorsRef = collection(db, 'tutors');
+    const q = query(tutorsRef, where('tutorid', '==', tutorId));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const tutorDoc = querySnapshot.docs[0];
+      const tutorData = tutorDoc.data();
+      return tutorData.profile_picture || 'default-avatar.png';
+    }
+    return 'default-avatar.png';
+  } catch (error) {
+    console.error('Error fetching tutor profile pic:', error);
+    return 'default-avatar.png';
   }
 };
 
@@ -368,9 +388,9 @@ interface OrderDetails {
 }
 
 export default function OrderDetailPage() {
-  // Move ALL hooks to the top, before any conditional returns
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -392,11 +412,22 @@ export default function OrderDetailPage() {
   });
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [tutorName, setTutorName] = useState<string>('');
+  const [tutorProfilePic, setTutorProfilePic] = useState<string>('');
   const [totalPrice, setTotalPrice] = useState(0);
   const [remainingBalance, setRemainingBalance] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
 
-  // Move the price calculation effect here, with all other useEffects
+  // All useEffects should be grouped together
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get('openChat') === 'true') {
+      setShowChat(true);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const calculatePrices = () => {
       if (!order) return;
@@ -415,14 +446,8 @@ export default function OrderDetailPage() {
       const remaining = Math.max(0, total - effectiveTotalPaid);
       setRemainingBalance(remaining);
     };
-
     calculatePrices();
   }, [order]);
-
-  // All other useEffects go here...
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -471,7 +496,6 @@ export default function OrderDetailPage() {
     }
   }, [params.id, user, mounted]);
 
-  // Add this effect to fetch tutor name when order changes
   useEffect(() => {
     const fetchTutorName = async () => {
       if (order?.tutorid) {
@@ -479,8 +503,17 @@ export default function OrderDetailPage() {
         setTutorName(name);
       }
     };
-
     fetchTutorName();
+  }, [order?.tutorid]);
+
+  useEffect(() => {
+    const fetchTutorProfilePic = async () => {
+      if (order?.tutorid) {
+        const profilePic = await getTutorProfilePic(order.tutorid);
+        setTutorProfilePic(profilePic);
+      }
+    };
+    fetchTutorProfilePic();
   }, [order?.tutorid]);
 
   // Create PaymentReceipt component outside the main component
@@ -857,69 +890,17 @@ export default function OrderDetailPage() {
     <div className="pt-[80px] relative bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Chat Panel - Slides from right */}
       {showChat && (
-        <>
-          {/* Overlay */}
-          <div 
-            className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-300"
-            onClick={() => setShowChat(false)}
-          />
-          
-          {/* Chat Panel */}
-          <div 
-            className={`
-              fixed right-4 bottom-4 h-[600px] w-[400px] bg-white dark:bg-gray-900 
-              shadow-xl z-50 transition-all duration-300 ease-in-out
-              rounded-lg border border-border flex flex-col
-              ${showChat ? 'translate-x-0' : 'translate-x-full'}
-            `}
-          >
-            {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/images/expert-avatar.png" />
-                  <AvatarFallback>EX</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-semibold">Expert</h2>
-                  <p className="text-sm text-muted-foreground">Online</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowChat(false)}
-                className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="text-sm text-gray-500 text-center">
-                No messages yet
-              </div>
-            </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800 mb-safe">
-              <div className="flex gap-2 items-center">
-                <Input
-                  placeholder="Type a message..."
-                  className="flex-1 h-10"
-                />
-                <Button 
-                  size="icon" 
-                  className="h-10 w-10 shrink-0"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
+        <OrderChat 
+          orderid={order.id} 
+          onClose={() => setShowChat(false)} 
+          tutorid={order.tutorid || ''} 
+          tutorname={tutorName || ''}
+          profile_pic={tutorProfilePic || 'default-avatar.png'}
+          title={order.title}
+          chatType={order.tutorid ? 'active' : 'bidding'}
+        />
       )}
+          
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -940,8 +921,8 @@ export default function OrderDetailPage() {
               onClick={() => setShowChat(true)}
               className="flex items-center gap-2 shadow-lg rounded-full px-4 bg-primary hover:bg-primary/90 text-white dark:text-black"
             >
-              <span className="text-sm">Open Chat</span>
-              <MessageCircle className="h-5 w-5" />
+              <span className="text-sm font-primary text-white">Open Chat</span>
+              <MessageCircle className="h-5 w-5 text-white" />
             </Button>
           </div>
           <div className="flex items-center">

@@ -204,7 +204,7 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
           placeholder="Project title"
           value={formData.title}
           onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-          className="mt-1.5"
+          className="mt-1.5 dark:bg-gray-800"
         />
       </div>
 

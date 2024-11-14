@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <main>
+    <main className="bg-secondary-gray-50 dark:bg-gray-900">
       <Hero />
       <Brands />
       <Feature />

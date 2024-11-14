@@ -7,7 +7,7 @@ const About = () => {
   return (
     <>
       {/* <!-- ===== About Start ===== --> */}
-      <section className="overflow-hidden pb-20 lg:pb-25 xl:pb-30">
+      <section className="overflow-hidden pb-20 lg:pb-25 xl:pb-30 bg-secondary-gray-50 dark:bg-gray-900">
         <div className="mx-auto max-w-c-1235 px-4 md:px-8 xl:px-0">
           <div className="flex items-center gap-8 lg:gap-32.5">
             <motion.div
@@ -70,29 +70,29 @@ const About = () => {
 
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-bold mb-2">1. Fill in a brief</h3>
-                  <p className="mb-4">Tell us what you need help with, describe your project requirements, and set the deadline</p>
+                  <h3 className="text-xl font-bold mb-2 text-secondary-gray-900 dark:text-white">1. Fill in a brief</h3>
+                  <p className="mb-4 text-secondary-gray-600 dark:text-secondary-gray-300">Tell us what you need help with, describe your project requirements, and set the deadline</p>
                   <button 
                     onClick={() => window.location.href = '/createproject'}
-                    className="inline-flex items-center justify-center rounded-full bg-primary px-7 py-3 text-white dark:text-black duration-300 ease-in-out hover:bg-primary/90"
+                    className="inline-flex items-center justify-center rounded-full bg-primary px-7 py-3 text-white dark:text-black duration-300 ease-in-out hover:bg-primary/90 dark:text-white dark:hover:bg-primary/90"
                   >
                     Order Now
                   </button>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold mb-2">2. Expert Assignment</h3>
-                  <p>We'll assign the best-suited expert for your project based on the subject matter and requirements</p>
+                  <h3 className="text-xl font-bold mb-2 text-secondary-gray-900 dark:text-white">2. Expert Assignment</h3>
+                  <p className="mb-4 text-secondary-gray-600 dark:text-secondary-gray-300">We'll assign the best-suited expert for your project based on the subject matter and requirements</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold mb-2">3. Get it done on time</h3>
-                  <p>Chat with the expert directly, discuss your project in detail, and get professional academic assistance by the deadline</p>
+                  <h3 className="text-xl font-bold mb-2 text-secondary-gray-900 dark:text-white">3. Get it done on time</h3>
+                  <p className="mb-4 text-secondary-gray-600 dark:text-secondary-gray-300">Chat with the expert directly, discuss your project in detail, and get professional academic assistance by the deadline</p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold mb-2">4. Make it perfect</h3>
-                  <p>Get your finished assignment checked for plagiarism and errors, and request revisions if needed — until it is up to your standards</p>
+                  <h3 className="text-xl font-bold mb-2 text-secondary-gray-900 dark:text-white">4. Make it perfect</h3>
+                  <p className="mb-4 text-secondary-gray-600 dark:text-secondary-gray-300">Get your finished assignment checked for plagiarism and errors, and request revisions if needed — until it is up to your standards</p>
                 </div>
               </div>
             </motion.div>

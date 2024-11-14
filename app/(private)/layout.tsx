@@ -33,7 +33,7 @@ export default function PrivateLayout({
         <ProtectedRoute>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="flex-grow">{children}</main>
+            <main className="flex-grow bg-secondary-gray-50 dark:bg-gray-900">{children}</main>
             <Footer />
           </div>
           <ScrollToTop />

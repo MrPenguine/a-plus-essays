@@ -31,6 +31,8 @@ import { handleProjectCreation } from "@/lib/firebase/project-service";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { dbService } from '@/lib/firebase/db-service';
+import NotificationBadge from "@/components/Notifications/NotificationBadge";
+import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 
 interface UserProfile {
   email: string;
@@ -40,6 +42,8 @@ interface UserProfile {
 }
 
 const Header = () => {
+  useOrderNotifications();
+
   const [stickyMenu, setStickyMenu] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -220,7 +224,7 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-black/80 ${
+      className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 ${
         stickyMenu ? "shadow-sticky" : ""
       }`}
     >
@@ -322,7 +326,7 @@ const Header = () => {
                   <li>
                     <Link href="/createproject">
                       <Button
-                        className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:text-black"
+                        className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:hover:bg-primary/90 dark:hover:text-white"
                       >
                         Create Project
                       </Button>
@@ -396,16 +400,16 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
-                  className="w-56 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800" 
+                  className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-800" 
                   align="end" 
                   forceMount
                 >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
+                      <p className="text-sm font-medium leading-none text-secondary-gray-600 dark:text-secondary-gray-300">
                         {user.displayName || 'New User'}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
                         {userProfile?.email || user?.email || ''}
                       </p>
                     </div>
@@ -413,14 +417,14 @@ const Header = () => {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/settings" className="w-full">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
+                      <Settings className="mr-2 h-4 w-4 dark:text-white" />
+                      <span className="text-medium font-primary text-secondary-gray-600 dark:text-secondary-gray-300">Settings</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                    <LogOut className="mr-2 h-4 w-4 dark:text-white" />
+                    <span className="text-secondary-gray-600 dark:text-secondary-gray-300">Log out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

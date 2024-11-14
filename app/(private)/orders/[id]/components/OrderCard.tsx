@@ -34,7 +34,7 @@ export default function OrderCard({ order }: OrderCardProps) {
 
   return (
     <Link href={`/orders/${order.id}`}>
-      <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+      <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer ">
         <div className="flex justify-between items-start mb-4">
           <h3 className="font-semibold text-lg line-clamp-2">{order.title}</h3>
           <Badge variant="outline" className={getStatusColor(order.status)}>
