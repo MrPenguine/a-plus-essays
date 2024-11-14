@@ -1,16 +1,8 @@
 "use client";
 import { Star, FileCheck, Check, User, Clock, Headphones } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/firebase/hooks";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -138,83 +130,83 @@ const Hero = () => {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 lg:py-16 grid md:grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-start">
-        <h1 className="block lg:hidden text-3xl lg:text-4xl xl:text-6xl font-bold text-black dark:text-white">
-            A-Plus Homework Help For All
-          </h1>
+        <h1 className="block lg:hidden text-3xl lg:text-4xl xl:text-6xl font-bold text-secondary-gray-900 dark:text-white">
+          A-Plus Homework Help For All
+        </h1>
+        
         <div className="w-full max-w-md mx-auto lg:ml-auto order-1 lg:order-2">
-          <Card className="bg-white border border-secondary-gray-200 dark:bg-gray-900 dark:border-secondary-gray-800">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-xl lg:text-2xl text-secondary-gray-900 dark:text-white">
+          <div className="bg-white dark:bg-gray-900 border border-secondary-gray-200 dark:border-secondary-gray-800 rounded-lg p-6">
+            <div className="space-y-1 mb-6">
+              <h2 className="text-xl lg:text-2xl font-semibold text-secondary-gray-900 dark:text-white">
                 {referralCode ? "Get Started with 20% Off" : "Get Started"}
-              </CardTitle>
-              <CardDescription className="text-secondary-gray-600 dark:text-secondary-gray-300">
+              </h2>
+              <p className="text-secondary-gray-600 dark:text-secondary-gray-300">
                 {referralCode 
                   ? "Create your first order to claim your 20% discount"
                   : "Fill in the details to get help with your assignment"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <div className="space-y-2">
-                  <Label className="text-secondary-gray-900 dark:text-white">Assignment Type</Label>
-                  <select
-                    name="assignmentType"
-                    value={formData.assignmentType}
-                    onChange={(e) => handleSelectChange(e.target.value)}
-                    className="w-full rounded-md border border-secondary-gray-200 bg-white dark:bg-gray-900 dark:border-secondary-gray-600 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    required
-                  >
-                    <option value="" >Select type of assignment</option>
-                    <option value="essay">Essay</option>
-                    <option value="research">Research Paper</option>
-                    <option value="thesis">Thesis</option>
-                    <option value="coursework">Coursework</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+              </p>
+            </div>
 
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label className="text-secondary-gray-900 dark:text-white">Assignment Type</Label>
+                <select
+                  name="assignmentType"
+                  value={formData.assignmentType}
+                  onChange={(e) => handleSelectChange(e.target.value)}
+                  className="w-full rounded-lg border border-secondary-gray-200 bg-white dark:bg-gray-900 dark:border-secondary-gray-600 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  <option value="">Select type of assignment</option>
+                  <option value="essay">Essay</option>
+                  <option value="research">Research Paper</option>
+                  <option value="thesis">Thesis</option>
+                  <option value="coursework">Coursework</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-secondary-gray-900 dark:text-white">Project Title</Label>
+                <Input 
+                  name="projectTitle"
+                  placeholder="Enter your project title" 
+                  className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:text-white dark:border-secondary-gray-600"
+                  value={formData.projectTitle}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              {!user && (
                 <div className="space-y-2">
-                  <Label className="text-secondary-gray-900 dark:text-white">Project Title</Label>
+                  <Label className="text-secondary-gray-900 dark:text-white">Email</Label>
                   <Input 
-                    name="projectTitle"
-                    placeholder="Enter your project title" 
-                    className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:text-white dark:border-secondary-gray-600 focus:ring-primary"
-                    value={formData.projectTitle}
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
                     onChange={handleInputChange}
+                    className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:text-white dark:border-secondary-gray-600"
                     required
                   />
                 </div>
+              )}
 
-                {!user && (
-                  <div className="space-y-2">
-                    <Label className="text-secondary-gray-900 dark:text-white">Email</Label>
-                    <Input 
-                      name="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="bg-white border-secondary-gray-200 dark:bg-gray-900 dark:text-white dark:border-secondary-gray-600 focus:ring-primary"
-                      required
-                    />
-                  </div>
-                )}
+              <Button 
+                type="submit" 
+                className="w-full bg-primary hover:bg-primary-600 text-white"
+              >
+                {referralCode ? "Get Started with 20% Off" : "Get Started"}
+              </Button>
 
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary hover:bg-primary-600 text-white"
-                >
-                  {referralCode ? "Get Started with 20% Off" : "Get Started"}
-                </Button>
-
-                <p className="text-center text-sm text-secondary-gray-600 dark:text-secondary-gray-300">
-                  {referralCode 
-                    ? "Your friend invited you - 20% discount will be applied"
-                    : "Writers are ready to help you now"}
-                </p>
-              </form>
-            </CardContent>
-          </Card>
+              <p className="text-center text-sm text-secondary-gray-600 dark:text-secondary-gray-300">
+                {referralCode 
+                  ? "Your friend invited you - 20% discount will be applied"
+                  : "Writers are ready to help you now"}
+              </p>
+            </form>
+          </div>
         </div>
 
         <div className="space-y-6 lg:space-y-8 order-2 lg:order-1">
