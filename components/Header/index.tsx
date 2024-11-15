@@ -34,6 +34,7 @@ import { dbService } from '@/lib/firebase/db-service';
 import NotificationBadge from "@/components/Notifications/NotificationBadge";
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
+import { IoIosNotifications } from 'react-icons/io';
 
 interface UserProfile {
   email: string;
@@ -56,6 +57,7 @@ const Header = () => {
     projectTitle: "",
     email: ""
   });
+
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { chatNotifications } = useChatNotifications();
 
@@ -325,7 +327,7 @@ const Header = () => {
                       href="/dashboard/getbonus"
                       className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
                     >
-                      Get $20 Bonus
+                      🎁 Get Bonus
                     </Link>
                   </li>
                   <li>
@@ -433,7 +435,6 @@ const Header = () => {
                   </Popover>
                 </div>
 
-                <NotificationBadge />
               </>
             )}
 

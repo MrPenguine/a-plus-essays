@@ -136,6 +136,13 @@ interface OrderDetail {
   };
 }
 
+interface TutorData {
+  id: string;
+  tutor_name: string;
+  profile_picture: string;
+  // ... other tutor properties
+}
+
 const getPayments = async (orderId: string, userId: string): Promise<Payment[]> => {
   try {
     const paymentsRef = collection(db, 'payments');
@@ -548,7 +555,7 @@ export const dbService = {
     });
   },
 
-  async getTutorById(tutorId: string) {
+  async getTutorById(tutorId: string): Promise<TutorData> {
     try {
       const tutorsRef = collection(db, 'tutors');
       const q = query(tutorsRef, where('tutorid', '==', tutorId));
@@ -557,7 +564,11 @@ export const dbService = {
       if (!querySnapshot.empty) {
         // Get the first matching document
         const tutorDoc = querySnapshot.docs[0];
-        return { id: tutorDoc.id, ...tutorDoc.data() };
+        return {
+          id: tutorId,
+          tutor_name: tutorDoc.data()?.tutor_name || 'Expert',
+          profile_picture: tutorDoc.data()?.profile_picture || '/default-avatar.png'
+        };
       }
       return null;
     } catch (error) {

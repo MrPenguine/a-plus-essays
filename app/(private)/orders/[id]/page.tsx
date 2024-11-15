@@ -388,6 +388,11 @@ interface OrderDetails {
   paymentStatus?: string;
 }
 
+// Add this helper function at the top of the component
+const hasAnyUnreadMessages = (notifications: Record<string, number>) => {
+  return Object.values(notifications).some(count => count > 0);
+};
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -419,8 +424,17 @@ export default function OrderDetailPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const { chatNotifications } = useChatNotifications();
 
-  // Get unread count for this order
-  const unreadCount = chatNotifications[params.id as string] || 0;
+  // Move this useEffect higher up with the other effects, before any conditional returns
+  useEffect(() => {
+    // Only log if we have the necessary data
+    if (params.id && chatNotifications) {
+      console.log('Chat notifications state:', {
+        orderId: params.id,
+        unreadCount: chatNotifications[params.id as string] || 0,
+        allNotifications: chatNotifications
+      });
+    }
+  }, [chatNotifications, params.id]);
 
   // All useEffects should be grouped together
   useEffect(() => {
@@ -899,10 +913,10 @@ export default function OrderDetailPage() {
         className="fixed bottom-6 right-6 p-4 bg-primary hover:bg-primary/90 text-white rounded-full shadow-lg flex items-center gap-2 z-50"
       >
         <MessageCircle className="h-6 w-6" />
-        {unreadCount > 0 && (
+        {hasAnyUnreadMessages(chatNotifications) && (
           <div className="absolute -top-2 -right-2 flex items-center justify-center">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
-              {unreadCount}
+              •
             </span>
           </div>
         )}
@@ -918,6 +932,7 @@ export default function OrderDetailPage() {
           profile_pic={tutorProfilePic || 'default-avatar.png'}
           title={order?.title}
           chatType={order?.tutorid ? 'active' : 'bidding'}
+          hasUnreadMessages={hasAnyUnreadMessages(chatNotifications)}
         />
       )}
 
@@ -944,10 +959,10 @@ export default function OrderDetailPage() {
                 <span className="text-sm font-primary text-white">Open Chat</span>
                 <MessageCircle className="h-5 w-5 text-white" />
               </Button>
-              {unreadCount > 0 && (
+              {hasAnyUnreadMessages(chatNotifications) && (
                 <div className="absolute -top-2 -right-2 flex items-center justify-center">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
-                    {unreadCount}
+                    •
                   </span>
                 </div>
               )}

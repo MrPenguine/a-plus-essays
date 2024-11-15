@@ -5,7 +5,7 @@ import { X, Send, ArrowLeft } from "lucide-react";
 import ably from "@/lib/ably/config";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, arrayUnion, increment, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, arrayUnion, increment, doc, onSnapshot } from "firebase/firestore";
 import { useAuth } from "@/lib/firebase/hooks";
 import { toast } from "react-hot-toast";
 import { dbService } from "@/lib/firebase/db-service";
@@ -19,16 +19,14 @@ interface OrderChatProps {
   profile_pic?: string;
   title?: string;
   chatType: 'active' | 'bidding';
+  hasUnreadMessages?: boolean;
 }
 
 interface Message {
-  id: string;
-  orderid: string;
-  messages: Array<{
-    message: string;
-    sender: string;
-    timestamp: string;
-  }>;
+  message: string;
+  sender: string;
+  timestamp: string;
+  pending?: boolean;
 }
 
 interface ChatOrder {
@@ -42,13 +40,27 @@ interface ChatOrder {
 
 // Add this interface for tutor data
 interface TutorData {
-  tutor_name: string;
-  profile_picture: string;
+  id?: string;
+  tutor_name?: string;
+  profile_picture?: string;
 }
 
-export default function OrderChat({ orderid, onClose, tutorid, tutorname, profile_pic, title, chatType }: OrderChatProps) {
+// Add these interfaces at the top
+interface MessageData {
+  message: string;
+  sender: string;
+  timestamp: string;
+  pending?: boolean;
+}
+
+// Add this helper function at the top of the component
+const hasAnyUnreadMessages = (notifications: Record<string, number>) => {
+  return Object.values(notifications).some(count => count > 0);
+};
+
+export default function OrderChat({ orderid, onClose, tutorid, tutorname, profile_pic, title, chatType, hasUnreadMessages }: OrderChatProps) {
   const [showChatList, setShowChatList] = useState(chatType === 'active');
-  const [messages, setMessages] = useState<Message['messages']>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [activeOrders, setActiveOrders] = useState<ChatOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<ChatOrder | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -146,79 +158,103 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     fetchActiveOrders();
   }, [user, chatType, orderid]);
 
-  // Modified fetch messages function
+  // Update the message listener useEffect
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!orderid) return;
+    const currentOrderId = selectedOrder?.id || orderid;
+    if (!currentOrderId) return;
 
-      try {
-        const messagesRef = collection(db, 'messages');
-        const q = query(
-          messagesRef,
-          where('orderid', '==', orderid)
-        );
+    const messagesRef = collection(db, 'messages');
+    const q = query(
+      messagesRef,
+      where('orderid', '==', currentOrderId)
+    );
 
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const messageDoc = querySnapshot.docs[0];
-          const messageData = messageDoc.data();
-          // Sort messages by timestamp
-          const sortedMessages = messageData.messages.sort((a: any, b: any) => 
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const messageDoc = snapshot.docs[0];
+        const messageData = messageDoc.data();
+        if (messageData.messages && Array.isArray(messageData.messages)) {
+          const sortedMessages = [...messageData.messages].sort((a: Message, b: Message) => 
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
           setMessages(sortedMessages);
         }
-      } catch (error) {
-        console.error('Error fetching messages:', error);
       }
+    }, (error) => {
+      console.error('Error listening to messages:', error);
+    });
+
+    // Cleanup subscription
+    return () => {
+      unsubscribe();
+      setMessages([]); // Clear messages when unmounting
     };
+  }, [selectedOrder?.id, orderid]); // Add both IDs to dependency array
 
-    fetchMessages();
-  }, [orderid]);
+  // Update handleOrderSelect to properly switch chats
+  const handleOrderSelect = async (order: ChatOrder) => {
+    setMessages([]); // Clear current messages
+    setSelectedOrder(order);
+    setShowChatList(false);
+    
+    try {
+      await markMessagesAsRead(order.id);
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
 
-  // Modified handleSendMessage function with optimistic updates
+  // Update handleSendMessage to ensure correct orderid is used
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
+    
+    // Use the selected order's ID or the prop orderid
+    const currentOrderId = selectedOrder?.id || orderid;
+    if (!currentOrderId) return;
 
     const messageData = {
       message: newMessage.trim(),
       sender: user.uid,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
+    };
+
+    const uiMessageData = {
+      ...messageData,
       pending: true
     };
 
     // Optimistically add message to UI
-    setMessages(prev => [...prev, messageData]);
-    setPendingMessages(prev => [...prev, messageData]);
+    setMessages(prev => [...prev, uiMessageData]);
+    setPendingMessages(prev => [...prev, uiMessageData]);
     setNewMessage(''); // Clear input immediately
 
     try {
       const messagesRef = collection(db, 'messages');
-      const q = query(messagesRef, where('orderid', '==', orderid));
+      const q = query(messagesRef, where('orderid', '==', currentOrderId));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
         await addDoc(messagesRef, {
-          orderid,
+          orderid: currentOrderId,
           messages: [messageData]
         });
       } else {
         const messageDoc = querySnapshot.docs[0];
         await updateDoc(messageDoc.ref, {
-          messages: arrayUnion({ ...messageData, pending: undefined })
+          messages: arrayUnion(messageData)
         });
       }
 
       // Remove from pending after successful save
       setPendingMessages(prev => prev.filter(msg => msg.timestamp !== messageData.timestamp));
 
-      // Handle notifications
+      // Handle notifications with correct orderid and recipient
       const recipientId = selectedOrder?.tutorid || tutorid;
       if (recipientId) {
         const notificationsRef = collection(db, 'notifications');
         const notificationQuery = query(
           notificationsRef,
-          where('orderid', '==', orderid),
+          where('orderid', '==', currentOrderId),
           where('userid', '==', recipientId)
         );
         
@@ -227,7 +263,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
         if (notificationSnapshot.empty) {
           // Create new notification
           await addDoc(notificationsRef, {
-            orderid,
+            orderid: currentOrderId,
             userid: recipientId,
             message: `New message in ${selectedOrder?.title || title}`,
             timestamp: new Date().toISOString(),
@@ -249,38 +285,8 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
-      // Remove failed message from UI
       setMessages(prev => prev.filter(msg => msg.timestamp !== messageData.timestamp));
       setPendingMessages(prev => prev.filter(msg => msg.timestamp !== messageData.timestamp));
-    }
-  };
-
-  // Modified handleOrderSelect to clear messages before loading new ones
-  const handleOrderSelect = async (order: ChatOrder) => {
-    setMessages([]);
-    setSelectedOrder(order);
-    setShowChatList(false);
-    
-    try {
-      await markMessagesAsRead(order.id);
-      const messagesRef = collection(db, 'messages');
-      const q = query(
-        messagesRef,
-        where('orderid', '==', order.id)
-      );
-
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        const messageDoc = querySnapshot.docs[0];
-        const messageData = messageDoc.data();
-        const sortedMessages = messageData.messages.sort((a: any, b: any) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-        setMessages(sortedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading chat messages:', error);
-      toast.error('Failed to load chat messages');
     }
   };
 
@@ -351,8 +357,15 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
       <div className="fixed right-4 bottom-4 h-[600px] w-[400px] bg-white dark:bg-gray-900 
         shadow-xl z-50 transition-all duration-300 ease-in-out
         rounded-lg border border-secondary-gray-200 dark:border-secondary-gray-600 
-        flex flex-col translate-x-0"
+        flex flex-col translate-x-0 relative"
       >
+        {/* Show red dot if there are any unread messages */}
+        {hasAnyUnreadMessages(chatNotifications) && (
+          <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center">
+            <span className="text-xs font-bold text-white">•</span>
+          </div>
+        )}
+
         {chatType === 'active' ? (
           <>
             {showChatList ? (
