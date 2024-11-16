@@ -139,7 +139,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
             if (doc.id === orderid) {
               orders.unshift({
                 ...order,
-                title: `${order.title} -- Active Chat`
+                title: `${order.title} - Current Chat`
               });
             } else {
               orders.push(order);
@@ -354,8 +354,15 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
       />
       
       {/* Chat Panel */}
-      <div className="fixed right-4 bottom-4 h-[600px] w-[400px] bg-white dark:bg-gray-900 
-        shadow-xl z-50 transition-all duration-300 ease-in-out
+      <div 
+        style={{
+          position: 'fixed',
+          right: '24px',
+          bottom: '100px',
+          zIndex: 50
+        }}
+        className="h-[600px] w-[400px] bg-white dark:bg-gray-900 
+        shadow-xl transition-all duration-300 ease-in-out
         rounded-lg border border-secondary-gray-200 dark:border-secondary-gray-600 
         flex flex-col translate-x-0 relative"
       >

@@ -9,6 +9,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useRouter } from 'next/navigation';
+import { useChatNotifications } from '@/lib/firebase/hooks';
+import { Button } from "@/components/ui/button";
 
 interface Notification {
   id: string;
@@ -26,6 +28,7 @@ export default function NotificationBadge() {
   const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
   const router = useRouter();
+  const { chatNotifications } = useChatNotifications();
 
   useEffect(() => {
     if (!user) return;
@@ -70,41 +73,65 @@ export default function NotificationBadge() {
     }
   };
 
+  // Calculate total notifications including chat notifications
+  const totalNotifications = unreadCount + Object.values(chatNotifications).reduce((sum, count) => sum + count, 0);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="relative p-2">
+        <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
-              {unreadCount}
-            </span>
+          {totalNotifications > 0 && (
+            <div className="absolute -top-2 -right-2 flex items-center justify-center">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                {totalNotifications}
+              </span>
+            </div>
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80">
+      <PopoverContent 
+        className="w-80 p-0 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 shadow-lg"
+        align="end"
+      >
         <div className="max-h-[300px] overflow-y-auto">
-          {notifications.length > 0 ? (
-            notifications.map((notification) => (
-              <div
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">{notification.ordertitle}</p>
-                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                    {notification.unreadCount}
-                  </span>
+          {notifications.length > 0 || Object.keys(chatNotifications).length > 0 ? (
+            <>
+              {/* Regular notifications */}
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">{notification.message}</p>
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                      {notification.unreadCount}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {notification.message}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(notification.timestamp).toLocaleString()}
-                </p>
-              </div>
-            ))
+              ))}
+
+              {/* Chat notifications */}
+              {Object.entries(chatNotifications).map(([orderId, count]) => (
+                <div
+                  key={orderId}
+                  onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                  className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                      {count}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Click to view messages
+                  </p>
+                </div>
+              ))}
+            </>
           ) : (
             <p className="text-center py-4 text-gray-500">No new notifications</p>
           )}
