@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 async function getInitialData() {
   return {
     welcomeMessage: "Welcome to A+ Essays Chat! How can I help you today?",
-    supportedSubjects: SUBJECTS,
+    supportedSubjects: [...SUBJECTS],
     educationLevels: [
       'High School',
       'Undergraduate', 
