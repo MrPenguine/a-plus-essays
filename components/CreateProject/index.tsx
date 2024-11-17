@@ -53,6 +53,31 @@ const calendarStyles = "bg-white dark:bg-gray-950 border border-gray-200 dark:bo
 // Add this constant at the top of the file
 const BACKBLAZE_PUBLIC_URL = 'https://f005.backblazeb2.com/file/a-plus-essays';
 
+// Add this new function at the top level
+async function saveProject(data: any, files: File[], authToken: string) {
+  const formData = new FormData();
+  formData.append('data', JSON.stringify(data));
+  
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch('/api/save-order', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create project');
+  }
+
+  return response.json();
+}
+
 export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -151,14 +176,15 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
     setLoading(true);
 
     try {
-      // Ensure user is authenticated
-      if (!auth.currentUser) {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
         toast.error('Please sign in to create a project');
         return;
       }
 
-      // Create order data from form state
-      const orderData = {
+      const token = await currentUser.getIdToken();
+
+      const projectData = {
         title: formData.title,
         description: formData.description,
         assignment_type: formData.assignmentType,
@@ -167,28 +193,23 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
         pages: countType === 'pages' ? formData.pages : Math.ceil(formData.words / 275),
         wordcount: countType === 'pages' ? formData.pages * 275 : formData.words,
         deadline: formData.deadline,
-        file_links: [],
-        userid: auth.currentUser.uid,
-        status: 'pending' as const,
-        paymentStatus: 'pending' as const,
-        amount_paid: 0,
-        createdAt: new Date().toISOString()
       };
 
-      // Create the order and get the ID
-      const orderId = await dbService.createOrder(orderData);
+      // Extract just the File objects from the UploadedFile array
+      const files = formData.files.map(f => f.file);
+
+      const result = await saveProject(projectData, files, token);
       
-      if (orderId) {
-        toast.success('Project created successfully');
-        router.push(`/orders/choosetutor?orderId=${orderId}`);
-        
-        if (onSubmit) {
-          onSubmit();
-        }
+      toast.success('Project created successfully');
+      router.push(`/orders/choosetutor?orderId=${result.orderId}`);
+      
+      if (onSubmit) {
+        onSubmit();
       }
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Error creating project:', error);
-      toast.error('Failed to create project');
+      toast.error(error.message || 'Failed to create project');
     } finally {
       setLoading(false);
     }

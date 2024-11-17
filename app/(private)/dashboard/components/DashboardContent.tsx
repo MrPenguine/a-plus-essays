@@ -1,43 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import OrdersList from "./OrdersList";
-import { Card } from "@/components/ui/card";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/firebase/hooks";
-import { dbService } from "@/lib/firebase/db-service";
+import { Card } from "@/components/ui/card";
+import { OrdersList } from "./OrdersList";
+import { toast } from "sonner";
 
 interface OrderCounts {
   all: number;
   pending: number;
   in_progress: number;
   completed: number;
-  cancelled: number;
 }
 
 export default function DashboardContent() {
-  const [mounted, setMounted] = useState(false);
+  const { user } = useAuth();
   const [orderCounts, setOrderCounts] = useState<OrderCounts>({
     all: 0,
     pending: 0,
     in_progress: 0,
-    completed: 0,
-    cancelled: 0
+    completed: 0
   });
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Fetch and count orders
   useEffect(() => {
     const fetchOrderCounts = async () => {
-      if (!user?.uid) return;
+      if (!user) return;
 
       try {
-        const orders = await dbService.getUserOrders(user.uid);
-        
-        const counts = orders.reduce((acc, order) => {
+        const token = await user.getIdToken();
+        const response = await fetch('/api/fetch-orders', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch orders');
+        }
+
+        const data = await response.json();
+        const orders = data.orders || [];
+
+        const counts = orders.reduce((acc: OrderCounts, order: any) => {
           acc.all++;
           switch (order.status) {
             case 'pending':
@@ -49,71 +54,63 @@ export default function DashboardContent() {
             case 'completed':
               acc.completed++;
               break;
-            case 'cancelled':
-              acc.cancelled++;
-              break;
           }
           return acc;
         }, {
           all: 0,
           pending: 0,
           in_progress: 0,
-          completed: 0,
-          cancelled: 0
-        } as OrderCounts);
+          completed: 0
+        });
 
         setOrderCounts(counts);
       } catch (error) {
-        console.error("Error fetching order counts:", error);
+        console.error('Error fetching order counts:', error);
+        toast.error('Failed to load order statistics');
+      } finally {
+        setLoading(false);
       }
     };
 
-    if (user) {
-      fetchOrderCounts();
-    }
+    fetchOrderCounts();
   }, [user]);
 
-  if (!mounted) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen pt-20">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="pt-[80px]">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,300px] gap-8">
-          {/* Left Column - Orders List */}
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Your Orders</h2>
-            <OrdersList />
-          </div>
-
-          {/* Right Column - Projects Stats */}
-          <div className="lg:sticky lg:top-[100px] lg:self-start">
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">My projects</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between py-2 hover:bg-muted/50 rounded px-2">
-                  <span className="text-sm text-muted-foreground">All</span>
-                  <span className="text-sm font-medium">{orderCounts.all}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 hover:bg-muted/50 rounded px-2">
-                  <span className="text-sm text-muted-foreground">Pending</span>
-                  <span className="text-sm font-medium">{orderCounts.pending}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 hover:bg-muted/50 rounded px-2">
-                  <span className="text-sm text-muted-foreground">In progress</span>
-                  <span className="text-sm font-medium">{orderCounts.in_progress}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 hover:bg-muted/50 rounded px-2">
-                  <span className="text-sm text-muted-foreground">Completed</span>
-                  <span className="text-sm font-medium">{orderCounts.completed}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 hover:bg-muted/50 rounded px-2">
-                  <span className="text-sm text-muted-foreground">Cancelled</span>
-                  <span className="text-sm font-medium">{orderCounts.cancelled}</span>
-                </div>
-              </div>
-            </Card>
-          </div>
+    <div className="container mx-auto px-4 py-8 mt-20">
+      <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex-grow order-2 lg:order-1">
+          <OrdersList />
         </div>
+
+        <Card className="lg:w-72 p-4 h-fit order-1 lg:order-2">
+          <h2 className="text-lg font-semibold mb-3">My projects</h2>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-sm">All</span>
+              <span className="font-medium">{orderCounts.all}</span>
+            </div>
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-sm">Pending</span>
+              <span className="font-medium">{orderCounts.pending}</span>
+            </div>
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-sm">In progress</span>
+              <span className="font-medium">{orderCounts.in_progress}</span>
+            </div>
+            <div className="flex justify-between items-center py-1.5">
+              <span className="text-sm">Completed</span>
+              <span className="font-medium">{orderCounts.completed}</span>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { db } from "./config";
-import { collection, doc, getDoc, setDoc, query, where, getDocs, updateDoc, orderBy, addDoc } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc, query, where, getDocs, updateDoc, orderBy, addDoc, limit as limitQuery } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from './config';
 
@@ -140,7 +140,11 @@ interface TutorData {
   id: string;
   tutor_name: string;
   profile_picture: string;
-  // ... other tutor properties
+  bio?: string;
+  rating?: number;
+  reviews?: number;
+  education?: string;
+  orders_completed?: number;
 }
 
 const getPayments = async (orderId: string, userId: string): Promise<Payment[]> => {
@@ -246,26 +250,11 @@ export const dbService = {
     }
   },
 
-  async updateOrder(orderId: string, updateData: {
-    status?: string;
-    paymentReference?: string;
-    paymentStatus?: string;
-    paymentId?: string;
-    paymentType?: string;
-    title?: string;
-    description?: string;
-    pages?: number;
-    subject?: string;
-    assignment_type?: string;
-    wordcount?: number;
-    price?: number;
-    adjustedPrice?: number;
-    additionalPaymentNeeded?: number;
-  }): Promise<void> {
+  async updateOrder(orderId: string, data: Partial<OrderDetail | OrderUpdate>): Promise<void> {
     try {
       const orderRef = doc(db, 'orders', orderId);
       await updateDoc(orderRef, {
-        ...updateData,
+        ...data,
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
@@ -547,22 +536,13 @@ export const dbService = {
     }
   },
 
-  async updateOrder(orderId: string, data: Partial<OrderDetail>) {
-    const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, {
-      ...data,
-      updatedAt: new Date().toISOString()
-    });
-  },
-
-  async getTutorById(tutorId: string): Promise<TutorData> {
+  async getTutorById(tutorId: string): Promise<TutorData | null> {
     try {
       const tutorsRef = collection(db, 'tutors');
       const q = query(tutorsRef, where('tutorid', '==', tutorId));
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        // Get the first matching document
         const tutorDoc = querySnapshot.docs[0];
         return {
           id: tutorId,
@@ -574,6 +554,37 @@ export const dbService = {
     } catch (error) {
       console.error('Error fetching tutor:', error);
       return null;
+    }
+  },
+
+  async getOrders(userId: string, limit?: number) {
+    try {
+      const ordersRef = collection(db, 'orders');
+      let q = query(
+        ordersRef,
+        where('userid', '==', userId)
+        // Temporarily remove orderBy until index is created
+        // orderBy('createdAt', 'desc')
+      );
+
+      if (limit) {
+        q = query(q, limitQuery(limit));
+      }
+
+      const snapshot = await getDocs(q);
+      
+      // Sort in memory instead
+      const orders = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return orders.sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    } catch (error) {
+      console.error("Error getting orders:", error);
+      throw error;
     }
   },
 }; 

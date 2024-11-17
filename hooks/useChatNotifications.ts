@@ -26,37 +26,46 @@ export function useChatNotifications() {
     const unsubscribeOrders = onSnapshot(ordersQuery, async (orderSnapshot) => {
       const orderIds = orderSnapshot.docs.map(doc => doc.id);
       
-      // Listen for messages in each order
-      const messagesRef = collection(db, 'messages');
-      const messagesQuery = query(
-        messagesRef,
-        where('orderid', 'in', orderIds)
-      );
+      // Only set up messages listener if there are orders
+      if (orderIds.length > 0) {
+        const messagesRef = collection(db, 'messages');
+        const messagesQuery = query(
+          messagesRef,
+          where('orderid', 'in', orderIds)
+        );
 
-      const unsubscribeMessages = onSnapshot(messagesQuery, (messageSnapshot) => {
-        const notifications: { [key: string]: number } = {};
+        const unsubscribeMessages = onSnapshot(messagesQuery, (messageSnapshot) => {
+          const notifications: { [key: string]: number } = {};
 
-        messageSnapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.messages) {
-            // Count unread messages (messages where sender is not the current user)
-            const unreadCount = data.messages.filter(
-              (msg: any) => msg.sender !== user.uid && !msg.read
-            ).length;
-            
-            if (unreadCount > 0) {
-              notifications[data.orderid] = unreadCount;
+          messageSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.messages) {
+              // Count unread messages (messages where sender is not the current user)
+              const unreadCount = data.messages.filter(
+                (msg: any) => msg.sender !== user.uid && !msg.read
+              ).length;
+              
+              if (unreadCount > 0) {
+                notifications[data.orderid] = unreadCount;
+              }
             }
-          }
+          });
+
+          setChatNotifications(notifications);
         });
 
-        setChatNotifications(notifications);
-      });
-
-      return () => unsubscribeMessages();
+        return () => {
+          unsubscribeMessages();
+        };
+      } else {
+        // Clear notifications if no orders
+        setChatNotifications({});
+      }
     });
 
-    return () => unsubscribeOrders();
+    return () => {
+      unsubscribeOrders();
+    };
   }, [user]);
 
   const markMessagesAsRead = async (orderId: string) => {

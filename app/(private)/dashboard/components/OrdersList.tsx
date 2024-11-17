@@ -1,61 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { dbService } from "@/lib/firebase/db-service";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/firebase/hooks";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import Link from "next/link";
-import { CalendarIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
 
 interface Order {
   id: string;
-  userid: string;
   title: string;
   status: string;
   deadline: string;
-  subject: string;
-  assignment_type: string;
-  price: number;
   description: string;
+  assignment_type: string;
   level: string;
   pages: number;
+  price: number;
+  subject: string;
+  userid: string;
   wordcount: number;
-  file_links: string[];
   createdAt: string;
 }
 
-function formatDeadline(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString; // Return original string if invalid date
-    }
-    return format(date, "PPP");
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return dateString; // Return original string if formatting fails
-  }
+function OrderSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="p-6 border rounded-lg">
+          <div className="flex justify-between items-start mb-2">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </div>
+            <div className="text-right">
+              <Skeleton className="h-6 w-[80px] ml-auto" />
+              <Skeleton className="h-4 w-[120px] mt-2" />
+            </div>
+          </div>
+          <div className="flex justify-between items-center mt-4">
+            <Skeleton className="h-4 w-[150px]" />
+            <Skeleton className="h-9 w-[100px]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-export default function OrdersList() {
+export function OrdersList() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [displayedOrders, setDisplayedOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-  const [displayCount, setDisplayCount] = useState(2); // Initial count
+  const [selectedStatus, setSelectedStatus] = useState("All");
   const { user } = useAuth();
   const router = useRouter();
 
-  // Fetch orders
   useEffect(() => {
     const fetchOrders = async () => {
       if (!user?.uid) {
@@ -64,16 +67,17 @@ export default function OrdersList() {
       }
       
       try {
-        const fetchedOrders = await dbService.getUserOrders(user.uid);
-        if (Array.isArray(fetchedOrders)) {
-          // Sort orders by creation date (most recent first)
-          const sortedOrders = fetchedOrders.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          setOrders(sortedOrders);
-          setFilteredOrders(sortedOrders);
-          setDisplayedOrders(sortedOrders.slice(0, displayCount));
-        }
+        const token = await user.getIdToken();
+        const response = await fetch('/api/fetch-orders', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch orders');
+        
+        const data = await response.json();
+        setOrders(data.orders);
       } catch (error) {
         console.error("Error fetching orders:", error);
       } finally {
@@ -82,163 +86,139 @@ export default function OrdersList() {
     };
 
     fetchOrders();
-  }, [user?.uid, displayCount]);
+  }, [user?.uid]);
 
-  // Handle search and status filter
-  useEffect(() => {
-    const filtered = orders.filter(order => {
-      const matchesSearch = !searchQuery.trim() || 
-        order.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.assignment_type.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
-
-      return matchesSearch && matchesStatus;
-    });
-
-    setFilteredOrders(filtered);
-    setDisplayedOrders(filtered.slice(0, displayCount));
-  }, [searchQuery, selectedStatus, orders, displayCount]);
-
-  const handleShowMore = () => {
-    const newCount = displayCount + (displayCount >= 5 ? 6 : 3);
-    setDisplayCount(newCount);
-  };
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = selectedStatus === "All" || order.status === selectedStatus.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
+    return <OrderSkeleton />;
+  }
+
+  if (!loading && filteredOrders.length === 0) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div>
+        <h2 className="text-2xl font-semibold mb-6">Your Orders</h2>
+        
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Input
+            className="pl-10"
+            placeholder="Search by project name, description, expert's name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
+          {["All", "Pending", "In Progress", "Completed", "Cancelled"].map((status) => (
+            <Button
+              key={status}
+              variant={selectedStatus === status ? "default" : "outline"}
+              onClick={() => setSelectedStatus(status)}
+              className="whitespace-nowrap"
+            >
+              {status}
+            </Button>
+          ))}
+        </div>
+
+        <Card className="p-8 text-center">
+          <p className="text-gray-500 mb-4">No orders to show</p>
+          <Button 
+            onClick={() => router.push('/createproject')}
+            className="mx-auto"
+          >
+            Create Order
+          </Button>
+        </Card>
       </div>
     );
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'yellow';
+      case 'in_progress':
+        return 'blue';
+      case 'completed':
+        return 'green';
+      case 'cancelled':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <div>
+      <h2 className="text-2xl font-semibold mb-6">Your Orders</h2>
+      
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
         <Input
+          className="pl-10"
           placeholder="Search by project name, description, expert's name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
         />
       </div>
 
-      {/* Status Filters */}
-      <Tabs defaultValue="all" value={selectedStatus} onValueChange={setSelectedStatus}>
-        <TabsList className="flex w-full overflow-x-auto no-scrollbar">
-          <TabsTrigger value="all" className="flex-1 min-w-fit px-3 text-sm md:text-base mr-auto">All</TabsTrigger>
-          <TabsTrigger value="pending" className="flex-1 min-w-fit px-3 text-sm md:text-base">Pending</TabsTrigger>
-          <TabsTrigger value="in_progress" className="flex-1 min-w-fit px-3 text-sm md:text-base">In Progress</TabsTrigger>
-          <TabsTrigger value="completed" className="flex-1 min-w-fit px-3 text-sm md:text-base">Completed</TabsTrigger>
-          <TabsTrigger value="cancelled" className="flex-1 min-w-fit px-3 text-sm md:text-base ml-auto">Cancelled</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
+        {["All", "Pending", "In Progress", "Completed", "Cancelled"].map((status) => (
+          <Button
+            key={status}
+            variant={selectedStatus === status ? "default" : "outline"}
+            onClick={() => setSelectedStatus(status)}
+            className="whitespace-nowrap"
+          >
+            {status}
+          </Button>
+        ))}
+      </div>
 
-      {/* Orders Display */}
-      {!orders || orders.length === 0 ? (
-        <Card className="relative overflow-hidden">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first project to get started
-            </p>
-            <Button 
-              onClick={() => router.push('/createproject')}
-              className="bg-primary hover:bg-primary/90 text-white dark:text-black"
-            >
-              Create Project
-            </Button>
-          </div>
-        </Card>
-      ) : filteredOrders.length === 0 ? (
-        <Card className="relative overflow-hidden">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">No orders found</h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search terms or clear the search to see all orders
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <>
-          {/* Orders List */}
-          <div className="space-y-4">
-            {displayedOrders.map((order) => (
-              <Card key={order.id} className="p-4">
-                {/* Top Row: Deadline and Status */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between text-sm text-muted-foreground gap-2 sm:gap-0">
-                  <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span>Deadline: {formatDeadline(order.deadline)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm">ID: {order.id.slice(0, 8)}</span>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs sm:text-sm px-2 py-0.5 ${
-                        order.status === 'completed' ? 'bg-green-500' :
-                        order.status === 'in_progress' ? 'bg-blue-500' :
-                        order.status === 'pending' ? 'bg-yellow-500' :
-                        'bg-gray-500'
-                      }`}
-                    >
-                      {order.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Title Row with Price */}
-                <div className="flex items-center justify-between mt-2">
-                  <Link 
-                    href={`/orders/${order.id}`}
-                    className="text-base sm:text-lg font-medium text-blue-500 hover:text-blue-600 transition-colors"
+      <div className="space-y-4">
+        {filteredOrders.map((order) => (
+          <div 
+            key={order.id}
+            className="p-4 sm:p-6 border rounded-lg hover:bg-gray-50 cursor-pointer"
+            onClick={() => router.push(`/orders/${order.id}`)}
+          >
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-lg">{order.title}</h3>
+                  <Badge 
+                    variant="outline" 
+                    className={`bg-${getStatusColor(order.status)}-50 text-${getStatusColor(order.status)}-700 border-${getStatusColor(order.status)}-200`}
                   >
-                    {order.title}
-                  </Link>
-                  <span className="font-medium text-sm sm:text-base">
-                    ${(order.price || 0).toFixed(2)}
-                  </span>
+                    {order.status}
+                  </Badge>
                 </div>
-
-                {/* Subject and Type Row */}
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
-                  <span>{order.subject}</span>
-                  {order.subject && order.assignment_type && <span>•</span>}
+                <div className="flex flex-wrap gap-2 text-sm text-gray-600">
                   <span>{order.assignment_type}</span>
+                  <span>•</span>
+                  <span>{order.subject}</span>
                 </div>
-
-                {/* Action Button */}
-                <div className="flex justify-end mt-4">
-                  <Button 
-                    onClick={() => router.push(`/orders/${order.id}`)}
-                    className="bg-primary hover:bg-primary/90 text-white dark:text-black text-sm sm:text-base"
-                  >
-                    View Order
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {/* Show More Button */}
-          {displayedOrders.length < filteredOrders.length && (
-            <div className="flex justify-center mt-6">
-              <Button
-                variant="outline"
-                onClick={handleShowMore}
-                className="px-8"
-              >
-                Show More
-              </Button>
+              </div>
+              <div className="text-left sm:text-right w-full sm:w-auto">
+                <div className="font-semibold">${order.price}</div>
+                <div className="text-sm text-gray-500">ID: {order.id}</div>
+              </div>
             </div>
-          )}
-        </>
-      )}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div className="text-sm text-gray-600">
+                Deadline: {new Date(order.deadline).toLocaleDateString()}
+              </div>
+              <Button variant="secondary" className="w-full sm:w-auto">View Order</Button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 } 

@@ -1,9 +1,12 @@
-import { Metadata } from "next";
-import "./globals.css";
+import { Inter } from 'next/font/google';
+import { Toaster } from '@/components/ui/sonner';
+import './globals.css';
 
-export const metadata: Metadata = {
-  title: "A+ Essays | Essay Writing by Professionals",
-  description: "Professional Essay Writing Services",
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata = {
+  title: 'A Plus Essays',
+  description: 'Get expert help with your essays and assignments',
 };
 
 export default function RootLayout({
@@ -12,12 +15,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body 
-        className="relative z-1 font-inter text-regular font-normal text-secondary-gray-500"
-        suppressHydrationWarning
-      >
+    <html lang="en">
+      <body className={inter.className}>
         {children}
+        <Toaster />
       </body>
     </html>
   );

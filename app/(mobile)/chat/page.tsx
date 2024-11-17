@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { Paperclip } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { dbService } from "@/lib/firebase/db-service";
 import { auth } from "@/lib/firebase/config";
 
 type Message = {
@@ -53,6 +52,31 @@ const PRICE_PER_PAGE = {
   'Masters': 14,
   'PhD': 15
 };
+
+// Add this new function at the top level
+async function saveOrder(data: any, files: File[], authToken: string) {
+  const formData = new FormData();
+  formData.append('data', JSON.stringify(data));
+  
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+
+  const response = await fetch('/api/save-order', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create order');
+  }
+
+  return response.json();
+}
 
 export default function ChatPage() {
   const router = useRouter();
@@ -492,20 +516,29 @@ export default function ChatPage() {
     const userResponse: Message = {
       id: Date.now(),
       text: descriptionForm.description,
-      sender: 'user' as const,
+      sender: 'user',
       timestamp: new Date()
     };
 
     const expertResponse: Message = {
       id: Date.now() + 1,
       text: "Great! We're analyzing your project...",
-      sender: 'expert' as const,
+      sender: 'expert',
       timestamp: new Date()
     };
 
     setDisplayedMessages(prev => [...prev, userResponse, expertResponse]);
 
     try {
+      // Get current user and token
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error('Please sign in to create a project');
+        return;
+      }
+
+      const token = await currentUser.getIdToken();
+
       // Get education level from messages
       const educationLevel = displayedMessages.find(m => 
         m.sender === 'user' && 
@@ -530,40 +563,46 @@ export default function ChatPage() {
       }
 
       const orderData = {
-        assignment_type: searchParams.get('type') || '',
         title: searchParams.get('title') || '',
         description: descriptionForm.description,
+        assignment_type: searchParams.get('type') || '',
+        subject: displayedMessages.find(m => 
+          m.sender === 'user' && 
+          ['English', 'Business', 'Nursing', 'History', 'Other'].includes(m.text)
+        )?.text || 'Other',
         level: educationLevel,
         pages,
         wordcount: pages * WORDS_PER_PAGE,
-        deadline: displayedMessages.find(m => m.sender === 'user' && m.text.includes('at'))?.text || '',
-        file_links: [],
-        userid: auth.currentUser?.uid || '',
-        status: 'pending',
-        paymentStatus: 'pending'
+        deadline: displayedMessages.find(m => 
+          m.sender === 'user' && 
+          m.text.includes('at')
+        )?.text || new Date().toISOString()
       };
 
-      // Save to Firestore
-      const orderId = await dbService.createOrder(orderData);
+      // Get files from description form if any
+      const files = descriptionForm.files || [];
+
+      // Save order using API
+      const result = await saveOrder(orderData, files, token);
 
       // Add success message
       const successResponse: Message = {
         id: Date.now() + 2,
         text: "Order saved successfully! Redirecting to choose tutor...",
-        sender: 'expert' as const,
+        sender: 'expert',
         timestamp: new Date()
       };
 
       setDisplayedMessages(prev => [...prev, successResponse]);
 
-      // Update redirect to only pass orderId
+      // Redirect after success
       setTimeout(() => {
-        router.push(`/orders/choosetutor?orderId=${orderId}`);
+        router.push(`/orders/choosetutor?orderId=${result.orderId}`);
       }, 2000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving order:', error);
-      toast.error('Failed to save order details');
+      toast.error(error.message || 'Failed to save order details');
     }
   };
 

@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { dbService } from "@/lib/firebase/db-service";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { auth } from "@/lib/firebase/config";
 
 interface TutorCardProps {
   tutor: {
@@ -34,20 +34,36 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
 
   const handleHireExpert = async () => {
     try {
-      const price = typeof tutor.price === 'number' ? tutor.price : 0;
-      
-      await dbService.updateOrder(orderId, {
-        tutorid: tutor.id,
-        price: price,
-        status: 'pending'
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error('Please sign in to hire an expert');
+        return;
+      }
+
+      const token = await currentUser.getIdToken();
+      const response = await fetch('/api/choose-tutor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderId,
+          tutorId: tutor.id,
+          price: tutor.price
+        })
       });
 
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to hire expert');
+      }
+
       toast.success('Expert assigned successfully');
-      
       router.push(`/payment-detail?orderId=${orderId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error hiring expert:', error);
-      toast.error('Failed to hire expert. Please try again.');
+      toast.error(error.message || 'Failed to hire expert. Please try again.');
     }
   };
 
