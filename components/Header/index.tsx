@@ -407,7 +407,7 @@ const Header = () => {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0">
+                    <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950 z-[999] mt-2">
                       <div className="max-h-[300px] overflow-y-auto">
                         {Object.entries(chatNotifications).length > 0 ? (
                           Object.entries(chatNotifications).map(([orderId, count]) => (
@@ -455,9 +455,10 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
-                  className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-800" 
+                  className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-800 mt-2 z-[999]" 
                   align="end" 
                   forceMount
+                  sideOffset={5}
                 >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
