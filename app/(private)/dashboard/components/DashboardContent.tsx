@@ -78,7 +78,7 @@ export default function DashboardContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen pt-20">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -91,23 +91,23 @@ export default function DashboardContent() {
         </div>
 
         <Card className="lg:w-72 p-4 h-fit order-1 lg:order-2">
-          <h2 className="text-lg font-semibold mb-3">My projects</h2>
+          <h2 className="text-lg font-semibold mb-3 text-black dark:text-white">My projects</h2>
           <div className="space-y-2">
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm">All</span>
-              <span className="font-medium">{orderCounts.all}</span>
+              <span className="text-sm text-black dark:text-white">All</span>
+              <span className="font-medium text-black dark:text-white">{orderCounts.all}</span>
             </div>
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm">Pending</span>
-              <span className="font-medium">{orderCounts.pending}</span>
+              <span className="text-sm text-black dark:text-white">Pending</span>
+              <span className="font-medium text-black dark:text-white">{orderCounts.pending}</span>
             </div>
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm">In progress</span>
-              <span className="font-medium">{orderCounts.in_progress}</span>
+              <span className="text-sm text-black dark:text-white">In progress</span>
+              <span className="font-medium text-black dark:text-white">{orderCounts.in_progress}</span>
             </div>
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm">Completed</span>
-              <span className="font-medium">{orderCounts.completed}</span>
+              <span className="text-sm text-black dark:text-white">Completed</span>
+              <span className="font-medium text-black dark:text-white">{orderCounts.completed}</span>
             </div>
           </div>
         </Card>

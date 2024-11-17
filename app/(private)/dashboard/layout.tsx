@@ -10,5 +10,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <div className="bg-white dark:bg-gray-900">
+      {children}
+    </div>
+  );
 } 

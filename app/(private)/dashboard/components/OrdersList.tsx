@@ -26,6 +26,11 @@ interface Order {
   createdAt: string;
 }
 
+const truncateText = (text: string, limit: number) => {
+  if (text.length <= limit) return text;
+  return text.slice(0, limit) + '...';
+};
+
 function OrderSkeleton() {
   return (
     <div className="space-y-4">
@@ -101,7 +106,7 @@ export function OrdersList() {
   if (!loading && filteredOrders.length === 0) {
     return (
       <div>
-        <h2 className="text-2xl font-semibold mb-6">Your Orders</h2>
+        <h2 className="text-2xl font-semibold mb-6 text-black dark:text-white">Your Orders</h2>
         
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -114,23 +119,27 @@ export function OrdersList() {
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
-          {["All", "Pending", "In Progress", "Completed", "Cancelled"].map((status) => (
+          {["All", "Pending", "in_progress", "Completed", "Cancelled"].map((status) => (
             <Button
               key={status}
               variant={selectedStatus === status ? "default" : "outline"}
               onClick={() => setSelectedStatus(status)}
-              className="whitespace-nowrap"
+              className={`whitespace-nowrap ${
+                selectedStatus === status 
+                  ? 'bg-primary text-white'
+                  : 'text-black dark:text-white'
+              }`}
             >
-              {status}
+              {status === "in_progress" ? "In Progress" : status}
             </Button>
           ))}
         </div>
 
         <Card className="p-8 text-center">
-          <p className="text-gray-500 mb-4">No orders to show</p>
+          <p className="text-secondary-gray-500 dark:text-secondary-gray-200 mb-4">No orders to show</p>
           <Button 
             onClick={() => router.push('/createproject')}
-            className="mx-auto"
+            className="mx-auto bg-primary text-white hover:bg-primary-600"
           >
             Create Order
           </Button>
@@ -142,21 +151,21 @@ export function OrdersList() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'pending':
-        return 'yellow';
+        return 'bg-warning text-secondary-gray-900 border-warning';
       case 'in_progress':
-        return 'blue';
+        return 'bg-primary-100 text-primary border-primary-200';
       case 'completed':
-        return 'green';
+        return 'bg-success text-white border-success';
       case 'cancelled':
-        return 'red';
+        return 'bg-error text-white border-error';
       default:
-        return 'gray';
+        return 'bg-secondary-gray-200 text-secondary-gray-600 border-secondary-gray-300';
     }
   };
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-6">Your Orders</h2>
+      <h2 className="text-2xl font-semibold mb-6 text-black dark:text-white">Your Orders</h2>
       
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -169,14 +178,18 @@ export function OrdersList() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
-        {["All", "Pending", "In Progress", "Completed", "Cancelled"].map((status) => (
+        {["All", "Pending", "in_progress", "Completed", "Cancelled"].map((status) => (
           <Button
             key={status}
             variant={selectedStatus === status ? "default" : "outline"}
             onClick={() => setSelectedStatus(status)}
-            className="whitespace-nowrap"
+            className={`whitespace-nowrap ${
+              selectedStatus === status 
+                ? 'bg-primary text-white'
+                : 'text-black dark:text-white'
+            }`}
           >
-            {status}
+            {status === "in_progress" ? "In Progress" : status}
           </Button>
         ))}
       </div>
@@ -185,33 +198,35 @@ export function OrdersList() {
         {filteredOrders.map((order) => (
           <div 
             key={order.id}
-            className="p-4 sm:p-6 border rounded-lg hover:bg-gray-50 cursor-pointer"
+            className="p-4 sm:p-6 border dark:border-secondary-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer bg-gray-50 dark:bg-secondary-gray-900"
             onClick={() => router.push(`/orders/${order.id}`)}
           >
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-lg">{order.title}</h3>
+                  <h3 className="font-semibold text-lg text-black dark:text-white">
+                    {truncateText(order.title, 20)}
+                  </h3>
                   <Badge 
                     variant="outline" 
-                    className={`bg-${getStatusColor(order.status)}-50 text-${getStatusColor(order.status)}-700 border-${getStatusColor(order.status)}-200`}
+                    className={getStatusColor(order.status)}
                   >
                     {order.status}
                   </Badge>
                 </div>
-                <div className="flex flex-wrap gap-2 text-sm text-gray-600">
+                <div className="flex flex-wrap gap-2 text-sm text-secondary-gray-500">
                   <span>{order.assignment_type}</span>
                   <span>•</span>
                   <span>{order.subject}</span>
                 </div>
               </div>
               <div className="text-left sm:text-right w-full sm:w-auto">
-                <div className="font-semibold">${order.price}</div>
-                <div className="text-sm text-gray-500">ID: {order.id}</div>
+                <div className="font-semibold text-primary">${order.price}</div>
+                <div className="text-sm text-secondary-gray-500">ID: {order.id}</div>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-secondary-gray-500">
                 Deadline: {new Date(order.deadline).toLocaleDateString()}
               </div>
               <Button variant="secondary" className="w-full sm:w-auto">View Order</Button>

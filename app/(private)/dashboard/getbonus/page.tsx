@@ -78,7 +78,7 @@ export default function GetBonusPage() {
           <div className="px-8 py-8 md:pr-4">
             <div className="max-w-md">
               <h2 className="text-xl font-semibold mb-2">Invite a Friend</h2>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-secondary-gray-500 mb-6">
                 Show A+ Essays to your friend and you both get a $20 discount.
                 The more friends you invite, the less you pay!
               </p>
@@ -100,7 +100,7 @@ export default function GetBonusPage() {
                       <Input 
                         value={referralLink}
                         readOnly
-                        className="bg-muted"
+                        className="bg-secondary-gray-100"
                       />
                       <Button 
                         variant="outline"
@@ -113,7 +113,7 @@ export default function GetBonusPage() {
                       </Button>
                     </div>
 
-                    <p className="text-sm text-muted-foreground text-center">
+                    <p className="text-sm text-secondary-gray-500 text-center">
                       Or just share it
                     </p>
 
@@ -215,16 +215,16 @@ export default function GetBonusPage() {
         {/* Stats Section */}
         <div className="mt-8 pt-8 border-t grid grid-cols-3 gap-4">
           <div className="text-center">
-            <p className="text-2xl font-bold">{stats.totalReferred}</p>
-            <p className="text-sm text-muted-foreground">Friends Invited</p>
+            <p className="text-2xl font-bold text-primary">{stats.totalReferred}</p>
+            <p className="text-sm text-secondary-gray-500">Friends Invited</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold">{stats.pendingRedemptions}</p>
-            <p className="text-sm text-muted-foreground">Pending Bonuses</p>
+            <p className="text-2xl font-bold text-primary">{stats.pendingRedemptions}</p>
+            <p className="text-sm text-secondary-gray-500">Pending Bonuses</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold">{stats.redeemedCount}</p>
-            <p className="text-sm text-muted-foreground">Bonuses Redeemed</p>
+            <p className="text-2xl font-bold text-primary">{stats.redeemedCount}</p>
+            <p className="text-sm text-secondary-gray-500">Bonuses Redeemed</p>
           </div>
         </div>
       </Card>

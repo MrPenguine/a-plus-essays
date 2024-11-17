@@ -50,6 +50,7 @@ module.exports = {
             900: '#060504',
           },
         },
+        color_background: '#dddff2',
       },
       zIndex: {
         1: "1",
