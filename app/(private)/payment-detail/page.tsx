@@ -63,6 +63,8 @@ interface OrderDetails {
   paymentType?: string;
   paymentStatus?: string;
   paymentReference?: string;
+  status?: string;
+  originalPrice?: number;
 }
 
 // Add this helper function to get the correct cpp field name
@@ -85,6 +87,28 @@ const getCppFieldName = (level: string): string => {
 interface PaymentOption {
   type: 'full' | 'partial';
   label: string;
+}
+
+// Add PaymentData interface
+interface PaymentData {
+  orderId: string;
+  amount: number;
+  paymentId: string;
+  userId: string;
+  status?: string;
+  createdAt?: string;
+}
+
+// Add OrderUpdate interface
+interface OrderUpdate {
+  amount_paid?: number;
+  status?: string;
+  paymentStatus?: string;
+  paymentReference?: string;
+  paymentType?: string;
+  discountAmount?: number;
+  discountType?: string | null;
+  updatedAt?: string;
 }
 
 export default function PaymentDetailPage() {
@@ -265,18 +289,18 @@ export default function PaymentDetailPage() {
         amount: currentPaymentAmount,
         paymentId: reference,
         userId: user.uid,
-        paymentType: 'paystack'
+        status: 'completed'
       });
 
       // Calculate new total paid amount
       const newTotalPaid = amountAlreadyPaid + currentPaymentAmount;
       
-      // Check if fully paid by comparing total paid + discount against price
+      // Check if fully paid
       const effectiveTotalPaid = newTotalPaid + discountAmount;
       const isFullyPaid = effectiveTotalPaid >= orderDetails.price;
 
       // Update order payment status
-      await dbService.updateOrder(orderDetails.id, {
+      const orderUpdate: OrderUpdate = {
         amount_paid: newTotalPaid,
         status: isFullyPaid ? 'in_progress' : 'partial',
         paymentStatus: isFullyPaid ? 'completed' : 'partial',
@@ -284,6 +308,28 @@ export default function PaymentDetailPage() {
         paymentType: 'paystack',
         discountAmount: discountAmount,
         discountType: discountInfo.type || null
+      };
+
+      await dbService.updateOrder(orderDetails.id, orderUpdate);
+
+      // Send payment success email
+      await fetch('/api/send-payment-success-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: orderDetails.id,
+          paymentId: reference,
+          amount: currentPaymentAmount,
+          userId: user.uid,
+          orderTitle: orderDetails.title,
+          orderDetails: {
+            subject: orderDetails.subject,
+            type: orderDetails.assignment_type,
+            pages: orderDetails.pages
+          }
+        }),
       });
 
       // Handle referral discount redemption if applicable

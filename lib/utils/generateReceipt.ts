@@ -16,38 +16,21 @@ interface ReceiptData {
 export const generateReceipt = async (data: ReceiptData): Promise<Blob> => {
   const doc = new jsPDF();
 
-  // Add logo - positioning modified for improved layout
-  const img = new Image();
-  img.src = '/images/logo.png';
+  // Set font
+  doc.setFont('helvetica');
 
-  // Wait for image to load and get its dimensions
-  await new Promise((resolve, reject) => {
-    img.onload = () => {
-      // Calculate aspect ratio and set size
-      const aspectRatio = img.width / img.height;
-      const desiredHeight = 20;
-      const width = desiredHeight * aspectRatio;
-
-      // Center the logo on the page
-      const xPosition = (doc.internal.pageSize.width - width) / 2;
-      doc.addImage(img, 'PNG', xPosition, 20, width, desiredHeight);
-      resolve(null);
-    };
-    img.onerror = reject;
-  });
-
-  // Company details - centered alignment
+  // Header
   doc.setFontSize(20);
   doc.setTextColor(44, 62, 80);
-  doc.text('A+ Essays', doc.internal.pageSize.width / 2, 50, { align: 'center' });
+  doc.text('A+ Essays', 15, 20);
 
+  // Contact info
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text('info@aplusessays.com', doc.internal.pageSize.width / 2, 56, { align: 'center' });
-  doc.text('Professional Essay Writing Services', doc.internal.pageSize.width / 2, 62, { align: 'center' });
+  doc.text('info@aplusessays.net', 15, 30);
+  doc.text('www.aplusessays.net', 15, 35);
 
-  // Horizontal separator line
-  doc.setDrawColor(200, 200, 200);
+  // Divider line
   doc.line(15, 70, 195, 70);
 
   // Receipt title - aligned to the left
@@ -96,31 +79,9 @@ export const generateReceipt = async (data: ReceiptData): Promise<Blob> => {
 
   // Terms & Conditions
   y += 20;
-  doc.setFontSize(10);
-  doc.setTextColor(44, 62, 80);
-  doc.text('Terms & Conditions', 15, y);
-  y += 7;
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text('• The above has been served to the customer.', 20, y);
-  y += 5;
-  doc.text('• The company has received the customer\'s full payment.', 20, y);
+  doc.text('Thank you for your business!', 15, y);
 
-  // Footer text
-  y = 250;
-  doc.setFontSize(9);
-  doc.setTextColor(100, 100, 100);
-  doc.text('Thank you for your business!', doc.internal.pageSize.width / 2, y, { align: 'center' });
-  y += 5;
-  doc.text('For any queries, please contact support at info@aplusessays.com', doc.internal.pageSize.width / 2, y, { align: 'center' });
-
-  // Watermark
-  doc.setFontSize(60);
-  doc.setTextColor(245, 245, 245);
-  doc.text('A+ Essays', doc.internal.pageSize.width / 2, doc.internal.pageSize.height / 2, {
-    align: 'center',
-    angle: 45
-  });
-
-  return doc.output('blob');
+  return new Blob([doc.output('blob')], { type: 'application/pdf' });
 };

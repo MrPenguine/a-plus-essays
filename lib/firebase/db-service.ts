@@ -60,12 +60,19 @@ interface PaymentData {
   amount: number;
   paymentId: string;
   userId: string;
+  status?: string;
+  createdAt?: string;
 }
 
 interface OrderUpdate {
-  status: string;
-  paymentReference?: string;
+  amount_paid?: number;
+  status?: string;
   paymentStatus?: string;
+  paymentReference?: string;
+  paymentType?: string;
+  discountAmount?: number;
+  discountType?: string | null;
+  updatedAt?: string;
 }
 
 interface ReferralStats {
@@ -113,6 +120,7 @@ interface OrderDetail {
   price: number;
   paymentStatus: 'pending' | 'partial' | 'completed';
   originalPrice: number;
+  amount_paid: number;
   adjustedPrice?: number;
   additionalPaymentNeeded?: number;
   updatedAt?: string;
@@ -242,7 +250,7 @@ export const dbService = {
       await setDoc(paymentRef, {
         ...paymentData,
         createdAt: new Date().toISOString(),
-        status: 'completed'
+        status: paymentData.status || 'completed'
       });
     } catch (error) {
       console.error("Error creating payment:", error);
@@ -250,7 +258,7 @@ export const dbService = {
     }
   },
 
-  async updateOrder(orderId: string, data: Partial<OrderDetail | OrderUpdate>): Promise<void> {
+  async updateOrder(orderId: string, data: OrderUpdate): Promise<void> {
     try {
       const orderRef = doc(db, 'orders', orderId);
       await updateDoc(orderRef, {
@@ -321,9 +329,10 @@ export const dbService = {
       return {
         id: orderSnap.id,
         ...data,
-        originalPrice: data.originalPrice || data.price, // Fallback for older orders
+        originalPrice: data.originalPrice || data.price,
         additionalPaymentNeeded: data.additionalPaymentNeeded || 0,
-        paymentStatus: data.paymentStatus || 'pending'
+        paymentStatus: data.paymentStatus || 'pending',
+        amount_paid: data.amount_paid || 0
       } as OrderDetail;
     } catch (error) {
       console.error("Error getting order:", error);
