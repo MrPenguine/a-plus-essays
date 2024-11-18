@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/firebase/hooks";
 import { Card } from "@/components/ui/card";
 import { OrdersList } from "./OrdersList";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 interface OrderCounts {
   all: number;
@@ -84,33 +85,46 @@ export default function DashboardContent() {
   }
 
   return (
+    
     <div className="container mx-auto px-4 py-8 mt-20">
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="flex-grow order-2 lg:order-1">
           <OrdersList />
         </div>
-
-        <Card className="lg:w-72 p-4 h-fit order-1 lg:order-2">
-          <h2 className="text-lg font-semibold mb-3 text-black dark:text-white">My projects</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm text-black dark:text-white">All</span>
-              <span className="font-medium text-black dark:text-white">{orderCounts.all}</span>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }} 
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.02 }}
+          transition={{ 
+            duration: 0.5,
+            scale: {
+              type: "spring",
+              stiffness: 100
+            }
+          }}
+        >
+          <Card className="lg:w-72 p-4 h-fit order-1 lg:order-2 bg-gray-50 dark:bg-secondary-gray-800/30 backdrop-blur-sm">
+            <h2 className="text-lg font-semibold mb-2 text-gray-800 dark:text-white">My projects</h2>
+          <div className="space-y-1">
+            <div className="flex justify-between items-center py-1">
+              <span className="text-sm text-gray-600 dark:text-gray-300">All</span>
+              <span className="font-medium text-gray-700 dark:text-white">{orderCounts.all}</span>
             </div>
-            <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm text-black dark:text-white">Pending</span>
-              <span className="font-medium text-black dark:text-white">{orderCounts.pending}</span>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-sm text-gray-600 dark:text-gray-300">Pending</span>
+              <span className="font-medium text-gray-700 dark:text-white">{orderCounts.pending}</span>
             </div>
-            <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm text-black dark:text-white">In progress</span>
-              <span className="font-medium text-black dark:text-white">{orderCounts.in_progress}</span>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-sm text-gray-600 dark:text-gray-300">In progress</span>
+              <span className="font-medium text-gray-700 dark:text-white">{orderCounts.in_progress}</span>
             </div>
-            <div className="flex justify-between items-center py-1.5">
-              <span className="text-sm text-black dark:text-white">Completed</span>
-              <span className="font-medium text-black dark:text-white">{orderCounts.completed}</span>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-sm text-gray-600 dark:text-gray-300">Completed</span>
+              <span className="font-medium text-gray-700 dark:text-white">{orderCounts.completed}</span>
             </div>
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );

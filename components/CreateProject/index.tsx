@@ -214,9 +214,9 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
       setLoading(false);
     }
   };
-
+  
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-gray-900 dark:text-white">
       {/* Project Title */}
       <div>
         <Label htmlFor="title">Project title*</Label>
@@ -226,6 +226,7 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
           value={formData.title}
           onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
           className="mt-1.5 dark:bg-gray-800"
+          required
         />
       </div>
 
@@ -235,11 +236,12 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
         <Select 
           value={formData.assignmentType}
           onValueChange={(value) => setFormData(prev => ({ ...prev, assignmentType: value }))}
+          required
         >
           <SelectTrigger className={`mt-1.5 ${selectStyles}`}>
             <SelectValue placeholder="Select project type" />
           </SelectTrigger>
-          <SelectContent className={selectStyles}>
+          <SelectContent className={`${selectStyles} dark:text-white dark:bg-gray-950`}>
             {ASSIGNMENT_TYPES.map(type => (
               <SelectItem key={type.value} value={type.value}>
                 {type.label}
@@ -255,11 +257,12 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
         <Select 
           value={formData.subject}
           onValueChange={(value) => setFormData(prev => ({ ...prev, subject: value }))}
+          required
         >
           <SelectTrigger className={`mt-1.5 ${selectStyles}`}>
             <SelectValue placeholder="Select subject" />
           </SelectTrigger>
-          <SelectContent className={selectStyles}>
+          <SelectContent className={`${selectStyles} dark:text-white dark:bg-gray-950`}>
             {SUBJECTS.map(subject => (
               <SelectItem key={subject} value={subject.toLowerCase()}>
                 {subject}
@@ -275,11 +278,12 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
         <Select 
           value={formData.educationLevel}
           onValueChange={(value) => setFormData(prev => ({ ...prev, educationLevel: value }))}
+          required
         >
           <SelectTrigger className={`mt-1.5 ${selectStyles}`}>
             <SelectValue placeholder="Select education level" />
           </SelectTrigger>
-          <SelectContent className={selectStyles}>
+          <SelectContent className={`${selectStyles} dark:text-white dark:bg-gray-950`}>
             {EDUCATION_LEVELS.map(level => (
               <SelectItem key={level} value={level}>
                 {level}
@@ -299,7 +303,7 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
           <SelectTrigger className={`mt-1.5 ${selectStyles}`}>
             <SelectValue placeholder="Select count type" />
           </SelectTrigger>
-          <SelectContent className={selectStyles}>
+          <SelectContent className={`${selectStyles} dark:text-white dark:bg-gray-950`}>
             <SelectItem value="pages">Pages</SelectItem>
             <SelectItem value="words">Words</SelectItem>
           </SelectContent>
@@ -355,7 +359,7 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
                 onSelect={handleDeadlineSelect}
                 disabled={(date) => date < new Date()}
                 initialFocus
-                className={calendarStyles}
+                className={`${calendarStyles} text-gray-900 dark:text-white dark:bg-gray-950`}
               />
             </PopoverContent>
           </Popover>
@@ -382,7 +386,7 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
             ...prev, 
             description: e.target.value 
           }))}
-          className="mt-1.5 min-h-[100px] resize-y"
+          className="mt-1.5 min-h-[100px] resize-y dark:bg-gray-800"
         />
       </div>
 
@@ -399,9 +403,9 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
           />
           <label
             htmlFor="file-upload"
-            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-900 dark:text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
           >
-            <Paperclip className="h-4 w-4" />
+            <Paperclip className="h-4 w-4 dark:text-black" />
             Attach files
           </label>
           <p className="text-xs text-muted-foreground">Up to 15 MB</p>
@@ -436,6 +440,7 @@ export function CreateProject({ initialData, onClose, onSubmit }: CreateProjectP
         <Button 
           onClick={handleSubmit}
           disabled={loading || showError}
+          className="bg-primary hover:bg-primary/90 text-white"
         >
           {loading ? 'Creating...' : 'Create Project'}
         </Button>

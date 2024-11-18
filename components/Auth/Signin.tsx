@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -16,14 +15,23 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { signInWithEmail, signInWithGoogle, signInAsGuest } from "@/lib/firebase/auth";
 import Link from "next/link";
+import { getAuth } from "firebase/auth";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 const Signin = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [userAuthType, setUserAuthType] = useState<'none' | 'google' | 'password' | 'anonymous' | null>(null);
   const [data, setData] = useState({
     email: "",
     password: "",
   });
+  const [statusMessage, setStatusMessage] = useState<{
+    text: string;
+    type: 'success' | 'info' | 'error' | null;
+  }>({ text: '', type: null });
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,19 +41,116 @@ const Signin = () => {
       const { user, error } = await signInWithEmail(data.email, data.password);
       
       if (error) {
-        toast.error(error.message);
+        if (error.message.includes('auth/invalid-credential')) {
+          const passwordInput = document.getElementById('password') as HTMLInputElement;
+          if (passwordInput) {
+            passwordInput.classList.add('border-red-500', 'focus:ring-red-500');
+          }
+          setStatusMessage({
+            text: "Invalid password",
+            type: 'error'
+          });
+          return;
+        }
+        setStatusMessage({
+          text: error.message,
+          type: 'error'
+        });
         return;
       }
 
       if (user) {
-        toast.success("Successfully signed in!");
-        router.push("/dashboard"); // or wherever you want to redirect after login
+        router.push("/dashboard");
       }
     } catch (error) {
-      toast.error("Something went wrong. Please try again.");
+      setStatusMessage({
+        text: "Something went wrong. Please try again.",
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const checkUserExists = async (email: string) => {
+    setIsLoading(true);
+    setStatusMessage({ text: '', type: null });
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', email.toLowerCase()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        router.push(`/auth/signup?email=${encodeURIComponent(data.email)}`);
+        return null;
+      }
+
+      const userData = querySnapshot.docs[0].data();
+      const userId = userData.userid;
+
+      const response = await fetch('/api/check-auth-method', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const { authMethod } = await response.json();
+      setUserAuthType(authMethod);
+
+      if (authMethod === 'anonymous') {
+        const setPasswordResponse = await fetch('/api/send-set-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        const result = await setPasswordResponse.json();
+        
+        if (result.success) {
+          if (result.showPassword) {
+            setShowPassword(true);
+          } else {
+            setStatusMessage({
+              text: "We've sent you an email to set your password!",
+              type: 'success'
+            });
+          }
+        } else {
+          setStatusMessage({
+            text: result.error || "Failed to send password reset email",
+            type: 'error'
+          });
+        }
+      } else if (authMethod === 'google') {
+        setStatusMessage({
+          text: "Please use the 'Sign in with Google' button below",
+          type: 'info'
+        });
+      } else if (authMethod === 'password') {
+        setShowPassword(true);
+      }
+
+      return authMethod;
+    } catch (error) {
+      console.error('Error checking user:', error);
+      setStatusMessage({
+        text: "An error occurred. Please try again.",
+        type: 'error'
+      });
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleContinue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!data.email) return;
+    await checkUserExists(data.email);
   };
 
   const handleGoogleSignIn = async () => {
@@ -55,16 +160,21 @@ const Signin = () => {
       const { user, error } = await signInWithGoogle();
       
       if (error) {
-        toast.error(error.message);
+        setStatusMessage({
+          text: error.message,
+          type: 'error'
+        });
         return;
       }
 
       if (user) {
-        toast.success("Successfully signed in with Google!");
         router.push("/dashboard");
       }
     } catch (error) {
-      toast.error("Something went wrong. Please try again.");
+      setStatusMessage({
+        text: "Something went wrong. Please try again.",
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -77,24 +187,38 @@ const Signin = () => {
       const { user, error } = await signInAsGuest();
       
       if (error) {
-        toast.error(error.message);
+        setStatusMessage({
+          text: error.message,
+          type: 'error'
+        });
         return;
       }
 
       if (user) {
-        toast.success("Signed in as guest!");
         router.push("/dashboard");
       }
     } catch (error) {
-      toast.error("Something went wrong. Please try again.");
+      setStatusMessage({
+        text: "Something went wrong. Please try again.",
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setData({ ...data, email: e.target.value });
+    if (showPassword) {
+      setShowPassword(false);
+      setStatusMessage({ text: '', type: null });
+      setUserAuthType(null);
+    }
+  };
+
   return (
-    <section className="pb-12.5 pt-32.5 lg:pb-25 lg:pt-45 xl:pb-30 xl:pt-50">
-      <div className="relative mx-auto max-w-[600px] px-4">
+    <section className="pb-12.5 pt-32.5 lg:pb-25 lg:pt-45 xl:pb-30 xl:pt-50 bg-secondary-gray-50 backdrop-blur-sm dark:bg-gray-900">
+      <div className="relative mx-auto max-w-[400px] px-4">
         <motion.div
           variants={{
             hidden: {
@@ -112,7 +236,7 @@ const Signin = () => {
           viewport={{ once: true }}
           className="animate_top w-full"
         >
-          <Card>
+          <Card className="bg-secondary-gray-50 dark:bg-gray-950 border-secondary-gray-100 dark:border-secondary-gray-800 shadow-md">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
               <CardDescription className="text-center">
@@ -121,59 +245,70 @@ const Signin = () => {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <form onSubmit={handleEmailSignIn} className="space-y-4">
+              <form onSubmit={showPassword ? handleEmailSignIn : handleContinue} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-secondary-gray-700 dark:text-secondary-gray-50">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="m@example.com"
                     value={data.email}
-                    onChange={(e) => setData({ ...data, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={data.password}
-                    onChange={(e) => setData({ ...data, password: e.target.value })}
+                    onChange={handleEmailChange}
+                    className="text-secondary-gray-700 dark:text-secondary-gray-50 border-secondary-gray-900 dark:border-secondary-gray-400 border-primary-color-100 dark:border-primary-color-900"
                     required
                   />
                 </div>
 
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      name="remember-me"
-                      type="checkbox"
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                {showPassword && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-secondary-gray-700 dark:text-secondary-gray-50">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={data.password}
+                      onChange={(e) => setData({ ...data, password: e.target.value })}
+                      required
+                      className="text-secondary-gray-700 dark:text-secondary-gray-50 border-secondary-gray-700 dark:border-secondary-gray-400 border-primary-color-100 dark:border-primary-color-900"
                     />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                      Remember me
-                    </label>
                   </div>
+                )}
 
-                  <div className="text-sm">
+                {statusMessage.text && (
+                  <div className={`text-sm p-2 rounded ${
+                    statusMessage.type === 'success' ? 'bg-green-50 text-green-600' :
+                    statusMessage.type === 'info' ? 'bg-blue-50 text-blue-600' :
+                    statusMessage.type === 'error' ? 'bg-red-50 text-red-600' : ''
+                  }`}>
+                    {statusMessage.text}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full text-white"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center text-white dark:text-white">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white text-white" />
+                    </div>
+                  ) : showPassword ? (
+                    "Sign in"
+                  ) : (
+                    "Continue"
+                  )}
+                </Button>
+
+                {showPassword && (
+                  <div className="text-sm text-center">
                     <Link
                       href="/auth/forgot-password"
-                      className="font-medium text-customblue hover:text-customblue/90"
+                      className="text-secondary-mint-300 hover:text-primary/90"
                     >
                       Forgot your password?
                     </Link>
                   </div>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Signing in..." : "Sign in"}
-                </Button>
+                )}
               </form>
 
               <div className="relative">
@@ -181,7 +316,7 @@ const Signin = () => {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
+                  <span className="bg-secondary-gray-50 dark:bg-gray-950 dark:text-gray-400 px-2 text-muted-foreground">
                     Or continue with
                   </span>
                 </div>
@@ -214,21 +349,13 @@ const Signin = () => {
                   </svg>
                   Sign in with Google
                 </Button>
-
-                <Button 
-                  variant="outline" 
-                  onClick={handleGuestSignIn}
-                  disabled={isLoading}
-                >
-                  Continue as guest
-                </Button>
               </div>
 
               <div className="text-center text-sm">
                 Don't have an account?{" "}
                 <Link 
                   href="/auth/signup"
-                  className="text-customblue hover:text-customblue/90 font-semibold"
+                  className="text-primary dark:text-secondary-gray-50 hover:text-customblue/90 font-semibold"
                 >
                   Sign up
                 </Link>

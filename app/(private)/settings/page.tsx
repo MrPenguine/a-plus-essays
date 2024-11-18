@@ -17,6 +17,7 @@ import { EmailAuthProvider, linkWithCredential, getAuth, reauthenticateWithCrede
 import { auth, db } from "@/lib/firebase/config";
 import { countries } from 'countries-list';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import Loading from "@/app/loading";
 
 // Convert countries object to array and sort by name
 const countryList = Object.entries(countries).map(([code, country]) => ({
@@ -53,6 +54,7 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Load user data
   useEffect(() => {
@@ -74,6 +76,8 @@ export default function SettingsPage() {
       } catch (error) {
         console.error('Error fetching user profile:', error);
         toast.error('Failed to load user profile');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -337,19 +341,23 @@ export default function SettingsPage() {
     }
   };
 
+  if (loading) {
+    return <Loading />;
+  }
+
   return (
     <div className="pt-[80px]">
       <div className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-2xl font-bold mb-8">Settings</h1>
+        <h1 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">Settings</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:[&>*]:self-start">
           {/* Personal Info Section */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-6">Personal Info</h2>
+          <Card className="p-6 dark:bg-gray-800 border border-secondary-gray-200 dark:border-secondary-gray-900">
+            <h2 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">Personal Info</h2>
             <div className="space-y-6">
               {/* Profile Picture */}
               <div>
-                <Label className="text-sm text-muted-foreground mb-2 block">Profile Picture</Label>
+                <Label className="text-sm text-muted-foreground mb-2 block text-gray-900 dark:text-white">Profile Picture</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
                     {uploading ? (
@@ -388,27 +396,27 @@ export default function SettingsPage() {
 
               {/* Email */}
               <div>
-                <Label htmlFor="email" className="text-sm text-muted-foreground">Email*</Label>
+                <Label htmlFor="email" className="text-sm text-muted-foreground text-gray-900 dark:text-white">Email*</Label>
                 <Input 
                   id="email" 
                   value={userProfile?.email || user?.email || ''} 
                   disabled 
                   type="email"
-                  className="bg-muted"
+                  className="bg-muted text-gray-900 dark:text-white"
                 />
               </div>
 
               {/* Country and City */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Country</Label>
+                  <Label className="text-sm text-muted-foreground text-gray-900 dark:text-white">Country</Label>
                   <select
                     name="country"
                     value={formData.country}
                     onChange={(e) => handleInputChange({
                       target: { name: 'country', value: e.target.value }
                     } as React.ChangeEvent<HTMLInputElement>)}
-                    className="w-full mt-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="w-full mt-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900 dark:text-white"
                   >
                     <option value="">Select country</option>
                     {countryList.map((country) => (
@@ -419,20 +427,20 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">City</Label>
+                  <Label className="text-sm text-muted-foreground text-gray-900 dark:text-white">City</Label>
                   <Input 
                     name="city"
                     placeholder="Enter city" 
                     value={formData.city}
                     onChange={handleInputChange}
-                    className="bg-background"
+                    className="bg-background text-gray-900 dark:text-white"
                   />
                 </div>
               </div>
 
               {/* Phone Numbers */}
               <div>
-                <Label className="text-sm text-muted-foreground">Phone numbers</Label>
+                <Label className="text-sm text-muted-foreground text-gray-900 dark:text-white">Phone numbers</Label>
                 <div className="space-y-2">
                   {/* Existing phone numbers */}
                   {formData.phoneNumbers.map((phone, index) => (
@@ -440,7 +448,7 @@ export default function SettingsPage() {
                       <Input 
                         value={phone} 
                         disabled 
-                        className="bg-muted flex-1"
+                        className="bg-muted flex-1 text-gray-900 dark:text-white"
                       />
                       <Button 
                         variant="ghost" 
@@ -456,14 +464,14 @@ export default function SettingsPage() {
                   {/* Add new phone number */}
                   <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="bg-background">
+                      <Button variant="outline" size="sm" className="bg-background text-gray-900 dark:text-white">
                         Add phone number
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80 bg-background/100 backdrop-blur-lg border-stroke">
+                    <PopoverContent className="w-80 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-stroke dark:border-gray-700">
                       <form onSubmit={handlePhoneSubmit} className="space-y-4">
                         <div>
-                          <Label htmlFor="newPhoneNumber">Phone Number</Label>
+                          <Label htmlFor="newPhoneNumber" className="text-gray-900 dark:text-white">Phone Number</Label>
                           <Input
                             id="newPhoneNumber"
                             name="newPhoneNumber"
@@ -473,10 +481,10 @@ export default function SettingsPage() {
                               ...prev,
                               newPhoneNumber: e.target.value
                             }))}
-                            className="bg-background"
+                            className="bg-background text-gray-900 dark:text-white"
                           />
                         </div>
-                        <Button type="submit" disabled={saving || !formData.newPhoneNumber}>
+                        <Button type="submit" disabled={saving || !formData.newPhoneNumber} className="text-white">
                           {saving ? 'Adding...' : 'Add Number'}
                         </Button>
                       </form>
@@ -487,7 +495,7 @@ export default function SettingsPage() {
 
               <Button 
                 onClick={() => handleSave('personal')} 
-                className="w-full"
+                className="w-full text-white"
                 disabled={saving}
               >
                 {saving ? 'Saving Changes...' : 'Save Changes'}
@@ -496,24 +504,24 @@ export default function SettingsPage() {
           </Card>
 
           {/* Security Section */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Security</h2>
+          <Card className="p-6 dark:bg-gray-800">
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Security</h2>
             <div className="space-y-4">
               {isAnonymous ? (
                 // Anonymous user - show set password form
                 <>
                   <div className="space-y-2">
                     <div>
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="email" className="text-gray-900 dark:text-white">Email</Label>
                       <Input 
                         id="email" 
                         value={userProfile?.email || user?.email || ''} 
                         disabled 
-                        className="bg-muted"
+                        className="bg-muted text-gray-900 dark:text-white"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="set-password">Set Password</Label>
+                      <Label htmlFor="set-password" className="text-gray-900 dark:text-white">Set Password</Label>
                       <Input 
                         id="set-password" 
                         type="password"
@@ -522,7 +530,7 @@ export default function SettingsPage() {
                         placeholder="Enter a strong password"
                       />
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">
                       Setting a password will allow you to sign in with email and password in addition to your current sign-in method.
                     </p>
                     <Button 
@@ -549,7 +557,7 @@ export default function SettingsPage() {
                 <>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="current-password">Current Password</Label>
+                      <Label htmlFor="current-password" className="text-gray-900 dark:text-white">Current Password</Label>
                       <Input 
                         id="current-password" 
                         type="password"
@@ -559,7 +567,7 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="new-password">New Password</Label>
+                      <Label htmlFor="new-password" className="text-gray-900 dark:text-white">New Password</Label>
                       <Input 
                         id="new-password" 
                         type="password"
@@ -571,7 +579,7 @@ export default function SettingsPage() {
                     <Button 
                       onClick={handleUpdatePassword}
                       disabled={isUpdatingPassword || !currentPassword || !newPassword}
-                      className="w-full"
+                      className="w-full text-white"
                     >
                       {isUpdatingPassword ? (
                         <div className="flex items-center gap-2">
@@ -589,7 +597,7 @@ export default function SettingsPage() {
                 </>
               ) : (
                 // Google user - show message
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground text-gray-900 dark:text-white">
                   You are signed in with Google. Password management is handled through your Google account.
                 </div>
               )}

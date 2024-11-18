@@ -104,6 +104,9 @@ importers:
       framer-motion:
         specifier: ^10.12.16
         version: 10.18.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      intasend-node:
+        specifier: ^1.1.2
+        version: 1.1.2
       jspdf:
         specifier: ^2.5.2
         version: 2.5.2
@@ -2439,6 +2442,9 @@ packages:
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
+
+  intasend-node@1.1.2:
+    resolution: {integrity: sha512-V9zQdcKEwFfMhfTKz7OrmSJ73BmBmT7MkjA2iN2k4PyxomOtWVgIYP5zYL9lF0wGuzpJaIp9cI8cZFo06n1TKQ==}
 
   internal-slot@1.0.7:
     resolution: {integrity: sha512-NGnrKwXzSms2qUUih/ILZ5JBqNTSa1+ZmP6flaIp6KmSElgE9qdndzS3cqjrDovwFdmwsGsLdeFgB6suw+1e9g==}
@@ -6599,6 +6605,8 @@ snapshots:
       wrappy: 1.0.2
 
   inherits@2.0.4: {}
+
+  intasend-node@1.1.2: {}
 
   internal-slot@1.0.7:
     dependencies:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Send } from "lucide-react";
 import OrderChat from "@/components/OrderChat/page";
 import { useChatNotifications } from '@/hooks/useChatNotifications';
+import { useIntaSendPayment } from '@/hooks/useIntaSendPayment';
+import Loading from "@/app/loading";
 
 interface OrderDetail {
   id: string;
@@ -294,9 +296,6 @@ interface EditableFields {
   deadline?: Date;
 }
 
-
-
-
 // Add this interface for payment handling
 interface PaymentHandlers {
   onSuccess: (reference: string) => void;
@@ -316,6 +315,7 @@ interface Payment {
   paymentId: string;
   userId: string;
   createdAt: string;
+  status?: string;
 }
 
 interface PaymentReceipt {
@@ -398,6 +398,9 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  const { chatNotifications } = useChatNotifications();
+
+  // Group all useState declarations together at the top
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -416,27 +419,27 @@ export default function OrderDetailPage() {
     isOpen: false,
     payment: null
   });
-  const [tutor, setTutor] = useState<Tutor | null>(null);
   const [tutorName, setTutorName] = useState<string>('');
   const [tutorProfilePic, setTutorProfilePic] = useState<string>('');
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [remainingBalance, setRemainingBalance] = useState(0);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const { chatNotifications } = useChatNotifications();
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
 
-  // Move this useEffect higher up with the other effects, before any conditional returns
-  useEffect(() => {
-    // Only log if we have the necessary data
-    if (params.id && chatNotifications) {
-      console.log('Chat notifications state:', {
-        orderId: params.id,
-        unreadCount: chatNotifications[params.id as string] || 0,
-        allNotifications: chatNotifications
-      });
+  // Define callbacks before effects
+  const handlePaymentComplete = useCallback(async () => {
+    if (!params.id) return;
+    try {
+      const updatedOrder = await dbService.getOrder(params.id as string);
+      setOrder(updatedOrder as OrderDetail);
+    } catch (error) {
+      console.error('Error updating order:', error);
     }
-  }, [chatNotifications, params.id]);
+  }, [params.id]);
 
-  // All useEffects should be grouped together
+  // Use useMemo for complex calculations
+  const hasUnreadMessages = useMemo(() => {
+    return hasAnyUnreadMessages(chatNotifications);
+  }, [chatNotifications]);
+
+  // Group all useEffects together
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -446,27 +449,6 @@ export default function OrderDetailPage() {
       setShowChat(true);
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    const calculatePrices = () => {
-      if (!order) return;
-
-      // Get the total discount amount
-      const discount = order.discountAmount || 0;
-      setDiscountAmount(discount);
-
-      // Calculate total price
-      const total = order.price;
-      setTotalPrice(total);
-
-      // Calculate remaining balance considering both paid amount and discount
-      const amountPaid = order.amount_paid || 0;
-      const effectiveTotalPaid = amountPaid + discount;
-      const remaining = Math.max(0, total - effectiveTotalPaid);
-      setRemainingBalance(remaining);
-    };
-    calculatePrices();
-  }, [order]);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -479,21 +461,9 @@ export default function OrderDetailPage() {
           return;
         }
 
-        // If order has a tutorid, fetch the tutor name
-        if (orderData.tutorid) {
-          try {
-            const tutorData = await dbService.getTutorById(orderData.tutorid);
-            if (tutorData) {
-              orderData.tutor_name = tutorData.tutor_name;
-            }
-          } catch (error) {
-            console.error('Error fetching tutor:', error);
-          }
-        }
-
         setOrder(orderData as OrderDetail);
         
-        // Fetch payments...
+        // Fetch payments
         try {
           const paymentsData = await dbService.getPayments(params.id as string, user.uid);
           setPayments(paymentsData);
@@ -515,24 +485,67 @@ export default function OrderDetailPage() {
     }
   }, [params.id, user, mounted]);
 
+  // Add IntaSend payment verification
   useEffect(() => {
-    const fetchTutorName = async () => {
-      if (order?.tutorid) {
-        const name = await getTutorName(order.tutorid);
-        setTutorName(name);
+    const verifyIntaSendPayment = async () => {
+      const checkoutId = searchParams.get('checkout_id');
+      if (!checkoutId || !user || !params.id) return;
+
+      setVerifyingPayment(true);
+      try {
+        // Get the actual amount from the URL parameters
+        const amount = searchParams.get('amount');
+        
+        const saveResponse = await fetch('/api/saveintasendpayment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: params.id,
+            paymentId: checkoutId,
+            userId: user.uid,
+            amount: parseFloat(amount || '0')
+          }),
+        });
+
+        const data = await saveResponse.json();
+
+        if (saveResponse.ok) {
+          toast.success('Payment completed successfully!');
+          // Clean up URL parameters
+          const url = new URL(window.location.href);
+          url.search = '';
+          window.history.replaceState({}, '', url.toString());
+          
+          // Refresh order data
+          await handlePaymentComplete();
+        }
+      } catch (error) {
+        console.error('Payment verification error:', error);
+      } finally {
+        setVerifyingPayment(false);
       }
     };
-    fetchTutorName();
-  }, [order?.tutorid]);
+
+    if (searchParams.get('checkout_id')) {
+      verifyIntaSendPayment();
+    }
+  }, [searchParams, user, params.id, handlePaymentComplete]);
 
   useEffect(() => {
-    const fetchTutorProfilePic = async () => {
+    const fetchTutorInfo = async () => {
       if (order?.tutorid) {
-        const profilePic = await getTutorProfilePic(order.tutorid);
+        const [name, profilePic] = await Promise.all([
+          getTutorName(order.tutorid),
+          getTutorProfilePic(order.tutorid)
+        ]);
+        setTutorName(name);
         setTutorProfilePic(profilePic);
       }
     };
-    fetchTutorProfilePic();
+
+    fetchTutorInfo();
   }, [order?.tutorid]);
 
   // Create PaymentReceipt component outside the main component
@@ -596,20 +609,18 @@ export default function OrderDetailPage() {
       </div>
     );
   };
-
-  // THEN your conditional returns
-  if (!mounted || authLoading || loading) {
-    return <LoadingState />;
+  
+  if (!mounted || authLoading || loading || verifyingPayment) {
+    return <Loading />;
   }
 
   if (!user) {
-    return (
+  return (
       <div className="pt-[80px] px-4">
         <p>Please sign in to view order details</p>
-      </div>
-    );
+    </div>
+  );
   }
-
   if (error) {
     return (
       <div className="pt-[80px] px-4">
@@ -906,7 +917,7 @@ export default function OrderDetailPage() {
   };
 
   return (
-    <div className="pt-[80px] relative bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="pt-[80px] relative bg-gray-100 dark:bg-gray-900 min-h-screen">
       {/* Floating Chat Button */}
       <button
         onClick={() => setShowChat(true)}
@@ -915,7 +926,7 @@ export default function OrderDetailPage() {
         <MessageCircle className="h-6 w-6" />
         {hasAnyUnreadMessages(chatNotifications) && (
           <div className="absolute -top-2 -right-2 flex items-center justify-center">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[5px] font-medium text-white">
               •
             </span>
           </div>
@@ -941,7 +952,7 @@ export default function OrderDetailPage() {
         {/* Back Button */}
         <button 
           onClick={() => router.push('/dashboard')}
-          className="flex items-center gap-2 mb-6 text-sm text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-2 mb-6 text-sm text-muted-foreground hover:text-gray-900 dark:hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to orders
@@ -950,7 +961,7 @@ export default function OrderDetailPage() {
         {/* Modified Order Header - With chat button and notification badge */}
         <div className="flex flex-col space-y-2 mb-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">{order?.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{order?.title}</h1>
             <div className="relative">
               <Button
                 onClick={() => setShowChat(true)}
@@ -976,12 +987,12 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Status and Payment Section */}
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700">
           <div className="flex flex-col space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Status:</span>
-                <Badge variant="outline" className={getStatusColor(order?.status || '')}>
+                <span className="text-sm text-muted-foreground text-gray-900 dark:text-white">Status:</span>
+                <Badge variant="outline" className={getStatusColor(order?.status || '') + ' text-white border-none'}>
                   {order?.status}
                 </Badge>
               </div>
@@ -994,7 +1005,7 @@ export default function OrderDetailPage() {
                     </p>
                     <Button
                       onClick={() => router.push(`/payment-detail?orderId=${order.id}`)}
-                      className="bg-customblue hover:bg-lightblue text-white text-sm hover:bg-opacity-90 hover:border-lightblue"
+                      className="bg-primary hover:bg-primary/90 text-white"
                     >
                       Complete Payment
                     </Button>
@@ -1005,17 +1016,17 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Assignment Details</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Assignment Details</h2>
             {!isEditing ? (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleEditClick}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-gray-900 dark:text-white"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-4 w-4 text-gray-900 dark:text-white hover:text-primary hover:dark:text-primary" />
                 Edit
               </Button>
             ) : (
@@ -1041,7 +1052,7 @@ export default function OrderDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Type</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Type</p>
               {isEditing ? (
                 <select
                   value={editableFields?.assignment_type}
@@ -1049,7 +1060,7 @@ export default function OrderDetailPage() {
                     ...prev!,
                     assignment_type: e.target.value
                   }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-secondary-gray-500 dark:text-white border-secondary-gray-200 dark:border-secondary-gray-700"
                 >
                   {ASSIGNMENT_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -1058,12 +1069,12 @@ export default function OrderDetailPage() {
                   ))}
                 </select>
               ) : (
-                <p className="font-medium">{order?.assignment_type}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{order?.assignment_type}</p>
               )}
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Subject</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Subject</p>
               {isEditing ? (
                 <select
                   value={editableFields?.subject}
@@ -1071,7 +1082,7 @@ export default function OrderDetailPage() {
                     ...prev!,
                     subject: e.target.value
                   }))}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-secondary-gray-500 dark:text-white border-secondary-gray-200 dark:border-secondary-gray-700"
                 >
                   {SUBJECTS.map((subject) => (
                     <option key={subject} value={subject}>
@@ -1080,27 +1091,27 @@ export default function OrderDetailPage() {
                   ))}
                 </select>
               ) : (
-                <p className="font-medium">{order?.subject}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{order?.subject}</p>
               )}
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Pages</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Pages</p>
               <p className="font-medium">{order?.pages}</p>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Words</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Words</p>
               <p className="font-medium">{order?.wordcount}</p>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Level</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Level</p>
               <p className="font-medium">{order?.level}</p>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Tutor</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Tutor</p>
               {order?.tutorid ? (
                 <p className="font-medium">{tutorName || 'Loading...'}</p>
               ) : (
@@ -1114,7 +1125,7 @@ export default function OrderDetailPage() {
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Price</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Price</p>
               {order?.tutorid ? (
                 <p className="font-medium">
                   ${isEditing ? 
@@ -1122,7 +1133,7 @@ export default function OrderDetailPage() {
                     : order?.price.toFixed(2)}
                 </p>
               ) : (
-                <p className="font-medium text-muted-foreground">
+                <p className="font-medium text-muted-foreground text-gray-900 dark:text-white">
                   Choose a tutor first
                 </p>
               )}
@@ -1132,8 +1143,8 @@ export default function OrderDetailPage() {
             <div className="col-span-2 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">Deadline</p>
-                  <p className="font-medium">
+                  <p className="text-sm text-muted-foreground text-gray-900 dark:text-white mb-2">Deadline</p>
+                  <p className="font-medium text-secondary-gray-500 dark:text-secondary-gray-400">
                     {isEditing && editableFields?.deadline 
                       ? formatDeadline(editableFields.deadline)
                       : formatDeadline(order.deadline)}
@@ -1145,7 +1156,7 @@ export default function OrderDetailPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 text-gray-900 dark:text-white"
                       >
                         <CalendarIcon className="h-4 w-4" />
                         Extend Deadline
@@ -1156,7 +1167,7 @@ export default function OrderDetailPage() {
                       align="end"
                     >
                       <div className="p-3 border-b border-border">
-                        <h4 className="font-medium">Extend Deadline</h4>
+                        <h4 className="font-medium text-gray-900 dark:text-white">Extend Deadline</h4>
                       </div>
                       <Calendar
                         mode="single"
@@ -1174,7 +1185,7 @@ export default function OrderDetailPage() {
                       />
                       <div className="p-3 border-t border-border bg-white dark:bg-gray-950">
                         <select
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-2"
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mb-2 text-secondary-gray-500 dark:text-white"
                           value={editableFields?.deadline?.getHours() || 12}
                           onChange={(e) => {
                             const newDate = new Date(editableFields?.deadline || new Date());
@@ -1218,8 +1229,8 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
-          <h2 className="text-lg font-semibold mb-4">Description</h2>
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Description</h2>
           <div>
             {isEditing ? (
               <Textarea
@@ -1228,7 +1239,7 @@ export default function OrderDetailPage() {
                   ...prev!,
                   description: e.target.value
                 }))}
-                className="min-h-[100px]"
+                className="min-h-[100px] text-gray-900 dark:text-white"
               />
             ) : (
               <>
@@ -1244,12 +1255,12 @@ export default function OrderDetailPage() {
                     className="mt-2 text-customblue hover:text-lightblue"
                   >
                     {showFullDescription ? (
-                      <div className="flex items-center gap-2">
-                        Show Less <ChevronUp className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                        Show Less <ChevronUp className="h-4 w-4 text-gray-900 dark:text-white" />
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        Show More <ChevronDown className="h-4 w-4" />
+                      <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                        Show More <ChevronDown className="h-4 w-4 text-gray-900 dark:text-white" />
                       </div>
                     )}
                   </Button>
@@ -1259,8 +1270,8 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-6 mb-6 bg-white dark:bg-gray-950">
-          <h2 className="text-lg font-semibold mb-4">Files</h2>
+        <Card className="p-6 mb-6 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Files</h2>
           <div className="space-y-4">
             {/* File Tabs */}
             <div className="flex gap-4 border-b">
@@ -1268,8 +1279,8 @@ export default function OrderDetailPage() {
                 onClick={() => setActiveFileTab('client')}
                 className={`pb-2 px-4 ${
                   activeFileTab === 'client'
-                    ? 'border-b-2 border-primary font-medium'
-                    : 'text-muted-foreground'
+                    ? 'border-b-2 border-primary font-medium text-gray-900 dark:text-white'
+                    : 'text-muted-foreground text-gray-900 dark:text-white'
                 }`}
               >
                 Client Documents
@@ -1278,8 +1289,8 @@ export default function OrderDetailPage() {
                 onClick={() => setActiveFileTab('tutor')}
                 className={`pb-2 px-4 ${
                   activeFileTab === 'tutor'
-                    ? 'border-b-2 border-primary font-medium'
-                    : 'text-muted-foreground'
+                    ? 'border-b-2 border-primary font-medium text-gray-900 dark:text-white'
+                    : 'text-muted-foreground text-gray-900 dark:text-white'
                 }`}
               >
                 Tutor Documents
@@ -1290,11 +1301,11 @@ export default function OrderDetailPage() {
             {activeFileTab === 'client' && (
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button className="bg-primary hover:bg-primary/90 text-white dark:text-black">
+                  <Button className="bg-primary hover:bg-primary/90 text-white">
                     Add Document
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 shadow-lg">
+                <PopoverContent className="w-80 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700 shadow-lg">
                   <div className="grid gap-4">
                     <div className="space-y-2">
                       <h4 className="font-medium leading-none">Upload Document</h4>
@@ -1330,7 +1341,7 @@ export default function OrderDetailPage() {
             )}
 
             {/* File Display Area */}
-            <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-secondary-gray-200 dark:border-secondary-gray-700">
               {activeFileTab === 'client' ? (
                 order?.documents?.documents?.client?.length ? (
                   <div className="space-y-2">
@@ -1412,17 +1423,17 @@ export default function OrderDetailPage() {
           </div>
         </Card>
 
-        <Card className="mt-6 mb-6">
+        <Card className="mt-6 mb-6 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700">
           <div className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Payments</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Payments</h2>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Payment ID</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-gray-900 dark:text-white">Date</TableHead>
+                  <TableHead className="text-gray-900 dark:text-white">Payment ID</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white">Amount</TableHead>
+                  <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1430,19 +1441,21 @@ export default function OrderDetailPage() {
                   .slice((currentPage - 1) * 10, currentPage * 10)
                   .map((payment) => (
                     <TableRow key={payment.id}>
-                      <TableCell>
+                      <TableCell className="text-gray-900 dark:text-white text-muted-foreground">
                         {format(new Date(payment.createdAt), "MMM d, yyyy h:mm a")}
                       </TableCell>
-                      <TableCell>{payment.paymentId}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-gray-900 dark:text-white text-muted-foreground">
+                        {payment.paymentId}
+                      </TableCell>
+                      <TableCell className="text-right text-gray-900 dark:text-white text-muted-foreground">
                         ${payment.amount.toFixed(2)}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={payment.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'}>
+                      <TableCell className="text-gray-900 dark:text-white text-muted-foreground">
+                        <Badge variant="outline" className={payment.status === 'completed' ? 'bg-green-500 text-white border-none' : 'bg-yellow-500 text-white border-none'}>
                           {payment.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-gray-900 dark:text-white text-muted-foreground">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1503,18 +1516,18 @@ export default function OrderDetailPage() {
           </DialogContent>
         </Dialog>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Timeline</h2>
+        <Card className="p-6 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-700">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Timeline</h2>
           <div className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">Created</p>
+              <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Created</p>
               <p className="font-medium">
                 {order.createdAt}
               </p>
             </div>
             {order.updatedAt && (
               <div>
-                <p className="text-sm text-muted-foreground">Last Updated</p>
+                <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">Last Updated</p>
                 <p className="font-medium">
                   {order.updatedAt}
                 </p>
@@ -1522,8 +1535,6 @@ export default function OrderDetailPage() {
             )}
           </div>
         </Card>
-
-      
       </div>
     </div>
   );

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from 'react';
-import { auth } from '@/lib/firebase/config';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -19,10 +17,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      // Send password reset email
-      await sendPasswordResetEmail(auth, email);
-
-      // Send custom email template
+      // Send custom email template only
       const response = await fetch('/api/send-password-reset', {
         method: 'POST',
         headers: {

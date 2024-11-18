@@ -41,6 +41,7 @@
     "firebase": "^11.0.1",
     "firebase-admin": "^12.7.0",
     "framer-motion": "^10.12.16",
+    "intasend-node": "^1.1.2",
     "jspdf": "^2.5.2",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",

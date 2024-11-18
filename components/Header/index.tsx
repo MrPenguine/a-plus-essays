@@ -239,14 +239,14 @@ const Header = () => {
         <div className="flex w-full items-center justify-between xl:w-1/4">
           <Link href="/" className="block py-0">
             <div className="flex items-center h-[80px]">
-              <div className="h-[76px] relative" style={{ aspectRatio: '2.925' }}>
+              <div className="h-[76px]">
                 <Image 
-                  src="/favicon.ico" 
+                  src="/images/logo.svg" 
                   alt="A+ Essays"
                   fill
-                  className="object-contain"
-                  style={{ objectPosition: 'left center' }}
-                  priority
+                    className="object-contain"
+                    style={{ objectPosition: 'left center' }}
+                    priority
                 />
               </div>
             </div>
@@ -397,7 +397,7 @@ const Header = () => {
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" className="relative">
-                        <Bell className="h-5 w-5" />
+                        <Bell className="h-5 w-5 dark:text-gray-50" />
                         {totalUnreadMessages > 0 && (
                           <div className="absolute -top-2 -right-2 flex items-center justify-center">
                             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
@@ -442,7 +442,7 @@ const Header = () => {
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
                     <Avatar className="h-10 w-10">
                       <AvatarImage 
                         src={getAvatarDetails().image} 
@@ -455,14 +455,14 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
-                  className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-200 dark:border-secondary-gray-800 mt-2 z-[999]" 
+                  className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
                   align="end" 
                   forceMount
                   sideOffset={5}
                 >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none text-secondary-gray-600 dark:text-secondary-gray-300">
+                      <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
                         {user.displayName || 'New User'}
                       </p>
                       <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
@@ -473,14 +473,14 @@ const Header = () => {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/settings" className="w-full">
-                      <Settings className="mr-2 h-4 w-4 dark:text-white" />
-                      <span className="text-medium font-primary text-secondary-gray-600 dark:text-secondary-gray-300">Settings</span>
+                      <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
+                      <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4 dark:text-white" />
-                    <span className="text-secondary-gray-600 dark:text-secondary-gray-300">Log out</span>
+                    <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
+                    <span className="text-gray-900 dark:text-gray-50">Log out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

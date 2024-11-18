@@ -9,6 +9,7 @@ import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
+import { FaChevronDown } from "react-icons/fa";
 
 interface Order {
   id: string;
@@ -63,6 +64,8 @@ export function OrdersList() {
   const [selectedStatus, setSelectedStatus] = useState("All");
   const { user } = useAuth();
   const router = useRouter();
+  const [displayCount, setDisplayCount] = useState(3);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -98,6 +101,14 @@ export function OrdersList() {
     const matchesStatus = selectedStatus === "All" || order.status === selectedStatus.toLowerCase();
     return matchesSearch && matchesStatus;
   });
+
+  const displayedOrders = filteredOrders.slice(0, displayCount);
+
+  const handleLoadMore = () => {
+    const newDisplayCount = displayCount + 3;
+    setDisplayCount(newDisplayCount);
+    setHasMore(newDisplayCount < filteredOrders.length);
+  };
 
   if (loading) {
     return <OrderSkeleton />;
@@ -177,7 +188,7 @@ export function OrdersList() {
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
+      <div className="flex gap-2 overflow-x-auto pb-2 border-b border-secondary-gray-200 dark:border-secondary-gray-700/50 mb-6">
         {["All", "Pending", "in_progress", "Completed", "Cancelled"].map((status) => (
           <Button
             key={status}
@@ -195,16 +206,16 @@ export function OrdersList() {
       </div>
 
       <div className="space-y-4">
-        {filteredOrders.map((order) => (
+        {displayedOrders.map((order) => (
           <div 
             key={order.id}
-            className="p-4 sm:p-6 border dark:border-secondary-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer bg-gray-50 dark:bg-secondary-gray-900"
+            className="p-4 sm:p-6 border dark:border-secondary-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-secondary-gray-800/70 cursor-pointer bg-gray-50 dark:bg-secondary-gray-800/30 backdrop-blur-sm"
             onClick={() => router.push(`/orders/${order.id}`)}
           >
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-lg text-black dark:text-white">
+                  <h3 className="font-semibold text-lg text-primary-600 dark:text-white hover:text-primary-600">
                     {truncateText(order.title, 20)}
                   </h3>
                   <Badge 
@@ -221,19 +232,33 @@ export function OrdersList() {
                 </div>
               </div>
               <div className="text-left sm:text-right w-full sm:w-auto">
-                <div className="font-semibold text-primary">${order.price}</div>
+                <div className="font-semibold text-primary dark:text-white">${order.price}</div>
                 <div className="text-sm text-secondary-gray-500">ID: {order.id}</div>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div className="text-sm text-secondary-gray-500">
+              <div className="text-sm text-secondary-gray-300">
                 Deadline: {new Date(order.deadline).toLocaleDateString()}
               </div>
-              <Button variant="secondary" className="w-full sm:w-auto">View Order</Button>
+              <Button variant="secondary" className="w-full sm:w-auto bg-primary text-white hover:bg-primary-600">View Order</Button>
             </div>
           </div>
         ))}
       </div>
+
+      {hasMore && (
+        <div className="mt-6 text-center">
+          <Button
+            variant="outline"
+            onClick={handleLoadMore}
+            className="gap-2 border-primary-200 rounded-full text-primary dark:text-white"
+          >
+            <FaChevronDown
+            />
+            VIEW MORE
+          </Button>
+        </div>
+      )}
     </div>
   );
 } 

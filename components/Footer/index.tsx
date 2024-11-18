@@ -5,7 +5,7 @@ import Image from "next/image";
 const Footer = () => {
   return (
     <>
-      <footer className="border-t border-stroke bg-white dark:border-strokedark dark:bg-blacksection">
+      <footer className="bg-white dark:bg-gray-900">
         <div className="mx-auto max-w-c-1390 px-4 md:px-8 2xl:px-0">
           {/* <!-- Footer Top --> */}
           <div className="py-20 lg:py-25">
@@ -30,23 +30,23 @@ const Footer = () => {
               >
                 <a href="/" className="relative">
                   <Image
-                    width={110}
-                    height={80}
-                    src="/images/logo/logo-light.svg"
+                    width={200}
+                    height={160}
+                    src="/images/logo.svg"
                     alt="Logo"
                     className="dark:hidden"
                   />
                   <Image
-                    width={110}
-                    height={80}
-                    src="/images/logo/logo-dark.svg"
+                    width={200}
+                    height={160}
+                    src="/images/logo.svg"
                     alt="Logo"
                     className="hidden dark:block"
                   />
                 </a>
 
-                <p className="mb-10 mt-5">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                <p className="mb-10 mt-5 text-gray-900 dark:text-white">
+                  Your academic journey, our commitment.
                 </p>
 
                 <p className="mb-1.5 text-sectiontitle uppercase tracking-[5px]">
@@ -54,9 +54,9 @@ const Footer = () => {
                 </p>
                 <a
                   href="#"
-                  className="text-itemtitle font-medium text-black dark:text-white"
+                  className="text-itemtitle font-medium text-primary-900 dark:text-white"
                 >
-                  hello@solid.com
+                  support@aplusessays.com
                 </a>
               </motion.div>
 
@@ -79,41 +79,48 @@ const Footer = () => {
                   viewport={{ once: true }}
                   className="animate_top"
                 >
-                  <h4 className="mb-9 text-itemtitle2 font-medium text-black dark:text-white">
+                  <h4 className="mb-9 text-itemtitle2 font-medium text-primary-900 dark:text-white">
                     Quick Links
                   </h4>
-
                   <ul>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
                         Home
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/project-types"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
-                        Product
+                        Project Types We Cover
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/academic-fields"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
-                        Careers
+                        Academic Fields & Subjects
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/dashboard"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
-                        Pricing
+                        Dashboard
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="/settings"
+                        className="mb-3 inline-block hover:text-primary-500"
+                      >
+                        Settings
                       </a>
                     </li>
                   </ul>
@@ -137,39 +144,39 @@ const Footer = () => {
                   viewport={{ once: true }}
                   className="animate_top"
                 >
-                  <h4 className="mb-9 text-itemtitle2 font-medium text-black dark:text-white">
+                  <h4 className="mb-9 text-itemtitle2 font-medium text-primary-900 dark:text-white">
                     Support
                   </h4>
 
                   <ul>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
                         Company
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
                         Press media
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
                         Our Blog
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#"
-                        className="mb-3 inline-block hover:text-primary"
+                        href="/"
+                        className="mb-3 inline-block hover:text-primary-500"
                       >
                         Contact Us
                       </a>
@@ -195,7 +202,7 @@ const Footer = () => {
                   viewport={{ once: true }}
                   className="animate_top"
                 >
-                  <h4 className="mb-9 text-itemtitle2 font-medium text-black dark:text-white">
+                  <h4 className="mb-9 text-itemtitle2 font-medium text-primary-900 dark:text-white">
                     Newsletter
                   </h4>
                   <p className="mb-4 w-[90%]">
@@ -207,7 +214,7 @@ const Footer = () => {
                       <input
                         type="text"
                         placeholder="Email address"
-                        className="w-full rounded-full border border-stroke px-6 py-3 shadow-solid-11 focus:border-primary focus:outline-none dark:border-strokedark dark:bg-black dark:shadow-none dark:focus:border-primary"
+                        className="w-full rounded-full border border-secondary-gray-200 px-6 py-3 shadow-solid-11 focus:border-primary-500 focus:outline-none dark:border-secondary-gray-700 dark:bg-secondary-gray-900 dark:shadow-none dark:focus:border-primary-500 placeholder:text-secondary-gray-500 dark:placeholder:text-secondary-gray-400"
                       />
 
                       <button
@@ -215,7 +222,7 @@ const Footer = () => {
                         className="absolute right-0 p-4"
                       >
                         <svg
-                          className="fill-[#757693] hover:fill-primary dark:fill-white"
+                          className="fill-secondary-gray-500 hover:fill-primary-500 dark:fill-white"
                           width="20"
                           height="20"
                           viewBox="0 0 20 20"
@@ -244,7 +251,7 @@ const Footer = () => {
           {/* <!-- Footer Top --> */}
 
           {/* <!-- Footer Bottom --> */}
-          <div className="flex flex-col flex-wrap items-center justify-center gap-5 border-t border-stroke py-7 dark:border-strokedark lg:flex-row lg:justify-between lg:gap-0">
+          <div className="flex flex-col flex-wrap items-center justify-center gap-5 border-t border-secondary-gray-200 py-7 dark:border-secondary-gray-700 lg:flex-row lg:justify-between lg:gap-0">
             <motion.div
               variants={{
                 hidden: {
@@ -265,17 +272,12 @@ const Footer = () => {
             >
               <ul className="flex items-center gap-8">
                 <li>
-                  <a href="#" className="hover:text-primary">
+                  <a href="#" className="hover:text-primary-500">
                     English
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-primary">
-                    Privacy Policy
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary">
+                  <a href="#" className="hover:text-primary-500">
                     Support
                   </a>
                 </li>
@@ -301,7 +303,7 @@ const Footer = () => {
               className="animate_top"
             >
               <p>
-                &copy; {new Date().getFullYear()} Solid. All rights reserved
+                &copy; {new Date().getFullYear()} A+ Essays. All rights reserved
               </p>
             </motion.div>
 
@@ -327,7 +329,7 @@ const Footer = () => {
                 <li>
                   <a href="#" aria-label="social icon">
                     <svg
-                      className="fill-[#D1D8E0] transition-all duration-300 hover:fill-primary"
+                      className="fill-secondary-gray-300 transition-all duration-300 hover:fill-primary-500"
                       width="24"
                       height="24"
                       viewBox="0 0 24 24"
@@ -351,7 +353,7 @@ const Footer = () => {
                 <li>
                   <a href="#" aria-label="social icon">
                     <svg
-                      className="fill-[#D1D8E0] transition-all duration-300 hover:fill-primary"
+                      className="fill-secondary-gray-300 transition-all duration-300 hover:fill-primary-500"
                       width="24"
                       height="24"
                       viewBox="0 0 24 24"
@@ -375,7 +377,7 @@ const Footer = () => {
                 <li>
                   <a href="#" aria-label="social icon">
                     <svg
-                      className="fill-[#D1D8E0] transition-all duration-300 hover:fill-primary"
+                      className="fill-secondary-gray-300 transition-all duration-300 hover:fill-primary-500"
                       width="24"
                       height="24"
                       viewBox="0 0 24 24"
@@ -399,7 +401,7 @@ const Footer = () => {
                 <li>
                   <a href="#" aria-label="social icon">
                     <svg
-                      className="fill-[#D1D8E0] transition-all duration-300 hover:fill-primary"
+                      className="fill-secondary-gray-300 transition-all duration-300 hover:fill-primary-500"
                       width="24"
                       height="24"
                       viewBox="0 0 24 24"

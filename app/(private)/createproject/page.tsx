@@ -14,7 +14,7 @@ export default function CreateProjectPage() {
   return (
     <div className="container mx-auto">
       <div className="pt-[100px] px-4 md:px-8 lg:px-12 min-h-screen">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto mb-12">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               Create New Project

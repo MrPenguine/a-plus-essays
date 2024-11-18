@@ -349,7 +349,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-300"
+        className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-300 dark:border-secondary-gray-600"
         onClick={onClose}
       />
       
@@ -363,7 +363,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
         }}
         className="h-[600px] w-[400px] bg-white dark:bg-gray-900 
         shadow-xl transition-all duration-300 ease-in-out
-        rounded-lg border border-secondary-gray-200 dark:border-secondary-gray-600 
+        rounded-lg border border-secondary-gray-200 dark:border-secondary-gray-700 
         flex flex-col translate-x-0 relative"
       >
         {/* Show red dot if there are any unread messages */}
@@ -379,7 +379,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
               <>
                 {/* Chat List Header */}
                 <div className="p-4 border-b border-secondary-gray-200 dark:border-secondary-gray-600 flex justify-between items-center">
-                  <h2 className="font-semibold text-lg">Active Chats</h2>
+                  <h2 className="font-semibold text-lg text-dark dark:text-white">Active Chats</h2>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -429,7 +429,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <h3 className="font-medium">{order.title}</h3>
+                          <h3 className="font-medium text-dark dark:text-white">{order.title}</h3>
                           <p className="text-sm text-gray-500">#{order.id.slice(0, 8)}</p>
                         </div>
                         {chatNotifications[order.id] > 0 && (
@@ -454,7 +454,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                     variant="ghost"
                     size="icon"
                     onClick={handleBack}
-                    className="mr-2"
+                    className="mr-2 text-dark dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
@@ -484,7 +484,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                     onClick={onClose}
                     className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 text-dark dark:text-white" />
                   </Button>
                 </div>
 
@@ -495,7 +495,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                       <div
                         key={index}
                         className={`mb-4 ${
-                          msg.sender === user?.uid ? 'ml-auto text-right' : 'mr-auto'
+                          msg.sender === user?.uid ? 'ml-auto text-right text-dark dark:text-white' : 'mr-auto text-dark dark:text-white'
                         }`}
                       >
                         <div
@@ -516,7 +516,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                       </div>
                     ))
                   ) : (
-                    <div className="text-sm text-gray-500 text-center">
+                    <div className="text-sm text-gray-500 text-center text-dark dark:text-white">
                       No messages yet
                     </div>
                   )}
@@ -529,7 +529,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type a message..."
-                      className="flex-1 h-10"
+                      className="flex-1 h-10 text-dark dark:text-white placeholder:text-dark dark:placeholder:text-white"
                       onKeyPress={(e) => {
                         if (e.key === 'Enter') {
                           handleSendMessage();
@@ -538,7 +538,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
                     />
                     <Button 
                       size="icon" 
-                      className="h-10 w-10 shrink-0"
+                      className="h-10 w-10 shrink-0 text-dark dark:text-white"
                       onClick={handleSendMessage}
                     >
                       <Send className="h-4 w-4" />

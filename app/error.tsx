@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
+
 export default function Error({
   error,
   reset,
@@ -21,6 +22,7 @@ export default function Error({
         onClick={() => {
           window.location.reload();
         }}
+        className='bg-primary dark:bg-secondary-gray-50 text-secondary-gray-50 dark:text-primary'
       >
         Try again
       </Button>
