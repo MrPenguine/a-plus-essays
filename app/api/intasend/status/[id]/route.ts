@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
 
-// Fix: Updated type for the second argument
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
+export async function GET(
+  request: Request,
+  context: RouteContext
+) {
   try {
-    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${params.id}/`, {
+    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${context.params.id}/`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,
