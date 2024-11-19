@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
 
-// Fix the type definition for the route params
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
-export async function GET(request: Request, { params }: Props) {
+// Fix: Updated type for the second argument
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${params.id}/`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,
+        Authorization: `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,
       },
     });
 
