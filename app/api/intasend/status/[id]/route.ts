@@ -1,12 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-// Update the route handler to use the correct Next.js types for dynamic routes
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+// Fix the type definition for the route params
+type Props = {
+  params: {
+    id: string;
+  };
+};
+
+export async function GET(request: Request, { params }: Props) {
   try {
-    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${context.params.id}/`, {
+    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${params.id}/`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,
@@ -27,4 +30,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}
