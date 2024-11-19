@@ -73,6 +73,13 @@ interface OrderUpdate {
   discountAmount?: number;
   discountType?: string | null;
   updatedAt?: string;
+  documents?: {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+    uploadedAt: string;
+  }[];
 }
 
 interface ReferralStats {
