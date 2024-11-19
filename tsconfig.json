@@ -7,8 +7,9 @@
     ],
     "baseUrl": ".",
     "allowJs": true,
+    "checkJs": false,
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "incremental": true,
@@ -39,8 +40,9 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "app/api/intasend/status/[id]/route.js"  ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "app/api/intasend/status/[id]/route.js"
   ]
 }
