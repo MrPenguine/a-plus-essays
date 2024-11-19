@@ -179,7 +179,7 @@ interface TutorData {
   profile_picture: string;
   bio: string;
   rating: number;
-  reviews: number;
+  reviews: string;
   education: string;
   orders_completed: number;
   highschool_cpp: number;
@@ -577,7 +577,7 @@ export const dbService = {
         profile_picture: doc.data().profile_picture || '/default-avatar.png',
         bio: doc.data().bio || '',
         rating: doc.data().rating || 0,
-        reviews: doc.data().reviews || 0,
+        reviews: doc.data().reviews?.toString() || '0',
         education: doc.data().education || '',
         orders_completed: doc.data().orders_completed || 0,
         highschool_cpp: doc.data().highschool_cpp || 0,
@@ -601,10 +601,21 @@ export const dbService = {
       
       if (!querySnapshot.empty) {
         const tutorDoc = querySnapshot.docs[0];
+        const data = tutorDoc.data();
         return {
-          id: tutorId,
-          tutor_name: tutorDoc.data()?.tutor_name || 'Expert',
-          profile_picture: tutorDoc.data()?.profile_picture || '/default-avatar.png'
+          tutorid: tutorId,
+          tutor_name: data?.tutor_name || 'Expert',
+          profile_picture: data?.profile_picture || '/default-avatar.png',
+          bio: data?.bio || '',
+          rating: data?.rating || 0,
+          reviews: data?.reviews?.toString() || '0',
+          education: data?.education || '',
+          orders_completed: data?.orders_completed || 0,
+          highschool_cpp: data?.highschool_cpp || 0,
+          undergraduate_cpp: data?.undergraduate_cpp || 0,
+          masters_cpp: data?.masters_cpp || 0,
+          phd_cpp: data?.phd_cpp || 0,
+          mentor: data?.mentor || false
         };
       }
       return null;
