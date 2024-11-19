@@ -1,14 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Fix the type definition for the route params
-type RouteParams = {
-  params: {
-    id: string;
-  };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export async function GET(request: Request, { params }: RouteParams) {
+// Update the route handler to use the correct Next.js types
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${params.id}/`, {
       method: 'GET',
