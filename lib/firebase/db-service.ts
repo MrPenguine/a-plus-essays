@@ -74,12 +74,21 @@ interface OrderUpdate {
   discountType?: string | null;
   updatedAt?: string;
   documents?: {
-    id: string;
-    name: string;
-    url: string;
-    type: string;
-    uploadedAt: string;
-  }[];
+    client?: Array<{
+      date: string;
+      files: Array<{
+        fileName: string;
+        url: string;
+      }>;
+    }>;
+    tutor?: Array<{
+      date: string;
+      files: Array<{
+        fileName: string;
+        url: string;
+      }>;
+    }>;
+  };
 }
 
 interface ReferralStats {
