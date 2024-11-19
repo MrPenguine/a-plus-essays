@@ -174,14 +174,21 @@ interface OrderDetail {
 }
 
 interface TutorData {
-  id: string;
+  tutorid: string;
   tutor_name: string;
   profile_picture: string;
-  bio?: string;
-  rating?: number;
-  reviews?: number;
-  education?: string;
-  orders_completed?: number;
+  bio: string;
+  rating: number;
+  reviews: number;
+  education: string;
+  orders_completed: number;
+  highschool_cpp: number;
+  undergraduate_cpp: number;
+  masters_cpp: number;
+  phd_cpp: number;
+  mentor: boolean;
+  subject?: string;
+  totalProjects?: number;
 }
 
 const getPayments = async (orderId: string, userId: string): Promise<Payment[]> => {
@@ -560,13 +567,25 @@ export const dbService = {
 
   getPayments,
 
-  async getTutors() {
+  async getTutors(): Promise<TutorData[]> {
     try {
       const tutorsRef = collection(db, 'tutors');
       const snapshot = await getDocs(tutorsRef);
       return snapshot.docs.map(doc => ({ 
         tutorid: doc.id,
-        ...doc.data() 
+        tutor_name: doc.data().tutor_name || 'Expert',
+        profile_picture: doc.data().profile_picture || '/default-avatar.png',
+        bio: doc.data().bio || '',
+        rating: doc.data().rating || 0,
+        reviews: doc.data().reviews || 0,
+        education: doc.data().education || '',
+        orders_completed: doc.data().orders_completed || 0,
+        highschool_cpp: doc.data().highschool_cpp || 0,
+        undergraduate_cpp: doc.data().undergraduate_cpp || 0,
+        masters_cpp: doc.data().masters_cpp || 0,
+        phd_cpp: doc.data().phd_cpp || 0,
+        mentor: doc.data().mentor || false,
+        ...doc.data()
       }));
     } catch (error) {
       console.error('Error fetching tutors:', error);
