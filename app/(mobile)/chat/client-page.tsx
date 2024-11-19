@@ -11,6 +11,7 @@ interface Message {
   timestamp: Date;
   showActions?: boolean;
   type?: 'subject' | 'educationLevel' | 'countType' | 'wordCount' | 'pageCount' | 'deadline' | 'description' | 'initial';
+  className?: string;
 }
 
 interface ChatClientPageProps {
@@ -58,6 +59,20 @@ export default function ChatClientPage({ initialData }: ChatClientPageProps) {
     }
   }, [messageQueue, showTyping]);
 
+  const handleGoAhead = () => {
+    setDisplayedMessages(prev => prev.map(msg => ({ ...msg, showActions: false })));
+    
+    const userResponse: Message = {
+      id: Date.now(),
+      text: "Go ahead!",
+      sender: 'user' as const,
+      timestamp: new Date(),
+      className: 'text-secondary-gray-50'
+    };
+
+    setMessageQueue(prev => [...prev, userResponse]);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-950">
       <div className="flex-1 overflow-y-auto p-4">
@@ -75,10 +90,10 @@ export default function ChatClientPage({ initialData }: ChatClientPageProps) {
               
               <div className={`max-w-[80%] rounded-lg p-3 ${
                 msg.sender === 'user'
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-primary text-secondary-gray-50'
                   : 'bg-muted'
               }`}>
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+                <p className={`whitespace-pre-wrap ${msg.className || ''}`}>{msg.text}</p>
               </div>
             </div>
           </div>

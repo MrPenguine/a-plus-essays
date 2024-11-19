@@ -35,11 +35,33 @@ interface UserProfile {
   phoneNumbers?: string[];
 }
 
+const formatPhotoURL = (url: string) => {
+  if (!url) return '/default-avatar.png';
+  
+  // Check if it's a Backblaze URL
+  if (url.includes('backblazeb2.com')) {
+    // Split the URL by '/'
+    const urlParts = url.split('/');
+    // Get the filename
+    const fileName = urlParts[urlParts.length - 1];
+    // Reconstruct the URL with profile_pictures directory
+    return `https://f005.backblazeb2.com/file/a-plus-essays/profile_pictures/${fileName}`;
+  }
+  
+  return url;
+};
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    photoURL: '/default-avatar.png',
+    email: '',
+    country: '',
+    city: '',
+    phoneNumbers: []
+  });
   const [formData, setFormData] = useState({
     country: "",
     city: "",
@@ -64,13 +86,12 @@ export default function SettingsPage() {
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
-          const data = userDoc.data() as UserProfile;
-          setUserProfile(data);
-          setFormData({
-            country: data.country || "",
-            city: data.city || "",
-            phoneNumbers: data.phoneNumbers || [],
-            newPhoneNumber: ""
+          const data = userDoc.data();
+          setUserProfile({
+            ...data,
+            photoURL: data.photoURL ? formatPhotoURL(data.photoURL) : '/default-avatar.png',
+            email: user.email || '',
+            phoneNumbers: data.phoneNumbers || []
           });
         }
       } catch (error) {
@@ -341,6 +362,43 @@ export default function SettingsPage() {
     }
   };
 
+  const handleProfilePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'profile_pictures'); // Specify the directory
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (data.url) {
+        // Update user profile with new photo URL
+        const userRef = doc(db, 'users', user!.uid);
+        await updateDoc(userRef, {
+          photoURL: data.url
+        });
+
+        // Update local state with formatted URL
+        setUserProfile(prev => ({
+          ...prev,
+          photoURL: formatPhotoURL(data.url)
+        }));
+
+        toast.success('Profile picture updated successfully');
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast.error('Failed to update profile picture');
+    }
+  };
+
   if (loading) {
     return <Loading />;
   }
@@ -360,19 +418,14 @@ export default function SettingsPage() {
                 <Label className="text-sm text-muted-foreground mb-2 block text-gray-900 dark:text-white">Profile Picture</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20">
-                    {uploading ? (
-                      <div className="h-full w-full flex items-center justify-center bg-muted">
-                        <svg className="animate-spin h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      </div>
-                    ) : (
-                      <>
-                        <AvatarImage src={getAvatarDetails().image} alt="Profile" />
-                        <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
-                      </>
-                    )}
+                    <AvatarImage 
+                      src={userProfile.photoURL || '/default-avatar.png'} 
+                      alt="Profile" 
+                      className="object-cover"
+                    />
+                    <AvatarFallback>
+                      {user?.displayName?.substring(0, 2).toUpperCase() || 'U'}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <Button 

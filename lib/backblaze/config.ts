@@ -55,7 +55,27 @@ export const uploadFile = async (
 
     console.log('Upload response:', response);
 
-    const fileUrl = `https://f004.backblazeb2.com/file/a-plus-essays/${uniqueFileName}`;
+    // Wait for file to be available and get download URL
+    const fileUrl = await new Promise<string>((resolve, reject) => {
+      const checkAvailability = async () => {
+        try {
+          const downloadResponse = await b2Client.downloadFileByName({
+            bucketName: 'a-plus-essays',
+            fileName: uniqueFileName,
+            responseType: 'arraybuffer'
+          });
+          
+          if (downloadResponse) {
+            resolve(`https://f004.backblazeb2.com/file/a-plus-essays/${uniqueFileName}`);
+          } else {
+            setTimeout(checkAvailability, 1000); // Retry after 1 second
+          }
+        } catch (err) {
+          setTimeout(checkAvailability, 1000); // Retry after 1 second
+        }
+      };
+      checkAvailability();
+    });
 
     return { 
       success: true, 

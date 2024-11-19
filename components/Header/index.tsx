@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { useAuth } from "@/lib/firebase/hooks";
+import { useAuth } from "@/lib/firebase/hooks/useAuth";
 import { logout } from "@/lib/firebase/auth";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,7 @@ import NotificationBadge from "@/components/Notifications/NotificationBadge";
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { IoIosNotifications } from 'react-icons/io';
+import { useAdmin } from "@/lib/firebase/hooks/useAdmin";
 
 interface UserProfile {
   email: string;
@@ -60,6 +61,7 @@ const Header = () => {
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const { chatNotifications } = useChatNotifications();
+  const { isAdmin } = useAdmin();
 
   useEffect(() => {
     setMounted(true);
@@ -203,10 +205,27 @@ const Header = () => {
   const getAvatarDetails = () => {
     if (!user) return { image: '/default-avatar.png', fallback: 'CN' };
 
+    // Helper function to format photo URL
+    const formatPhotoURL = (url: string) => {
+      if (!url) return '/default-avatar.png';
+      
+      // Check if it's a Backblaze URL
+      if (url.includes('backblazeb2.com')) {
+        // Split the URL by '/'
+        const urlParts = url.split('/');
+        // Get the filename
+        const fileName = urlParts[urlParts.length - 1];
+        // Reconstruct the URL with profile_pictures directory
+        return `https://f005.backblazeb2.com/file/a-plus-essays/profile_pictures/${fileName}`;
+      }
+      
+      return url;
+    };
+
     // Check Firestore profile picture first
     if (userProfile?.photoURL) {
       return {
-        image: userProfile.photoURL,
+        image: formatPhotoURL(userProfile.photoURL),
         fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
       };
     }
@@ -214,7 +233,7 @@ const Header = () => {
     // Then check Firebase Auth photo
     if (user.providerData[0]?.photoURL) {
       return {
-        image: user.providerData[0].photoURL,
+        image: formatPhotoURL(user.providerData[0].photoURL),
         fallback: (user.displayName || 'User').substring(0, 2).toUpperCase()
       };
     }
@@ -239,14 +258,14 @@ const Header = () => {
         <div className="flex w-full items-center justify-between xl:w-1/4">
           <Link href="/" className="block py-0">
             <div className="flex items-center h-[80px]">
-              <div className="h-[76px]">
+              <div className="h-[76px] relative w-[200px]">
                 <Image 
                   src="/images/logo.svg" 
                   alt="A+ Essays"
                   fill
-                    className="object-contain"
-                    style={{ objectPosition: 'left center' }}
-                    priority
+                  className="object-contain"
+                  style={{ objectPosition: 'left center' }}
+                  priority
                 />
               </div>
             </div>
@@ -256,13 +275,8 @@ const Header = () => {
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
-              aria-label="Toggle theme"
             >
-              {theme === "dark" ? (
-                <span aria-hidden="true">🌞</span>
-              ) : (
-                <span aria-hidden="true">🌙</span>
-              )}
+              {theme === "dark" ? "🌞" : "🌙"}
             </button>
 
             <button
@@ -305,54 +319,90 @@ const Header = () => {
         </div>
 
         <div
-          className={`invisible h-0 w-full items-center justify-between xl:visible xl:flex xl:h-auto xl:w-full ${
-            navigationOpen &&
-            "navbar !visible mt-4 h-auto max-h-[400px] rounded-md bg-white p-7.5 shadow-solid-5 dark:bg-blacksection xl:h-auto xl:p-0 xl:shadow-none xl:dark:bg-transparent"
-          }`}
+          className={`${
+            navigationOpen
+              ? "block"
+              : "hidden"
+          } xl:block w-full xl:w-auto`}
         >
-          <nav>
-            <ul className="flex flex-col gap-5 xl:flex-row xl:items-center xl:gap-10">
+          <nav className="w-full">
+            <ul className="flex flex-col xl:flex-row gap-5 xl:items-center xl:gap-10">
               {user ? (
                 <>
-                  <li>
-                    <Link
-                      href="/dashboard"
-                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
-                    >
-                      Your Projects
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dashboard/getbonus"
-                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
-                    >
-                      🎁 Get Bonus
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/createproject">
-                      <Button
-                        className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:hover:bg-primary/90 dark:hover:text-white"
-                      >
-                        Create Project
-                      </Button>
-                    </Link>
-                  </li>
-                  {userProfile && (
-                    <li>
-                      <div className="text-sm font-medium text-black dark:text-white">
-                        Balance: ${userProfile.balance.toFixed(2)}
-                      </div>
-                    </li>
+                  {isAdmin ? (
+                    // Admin Navigation
+                    <>
+                      <li>
+                        <Link
+                          href="/admin"
+                          className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                          onClick={() => setNavigationOpen(false)}
+                        >
+                          Admin Dashboard
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href="/dashboard/getbonus"
+                          className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                          onClick={() => setNavigationOpen(false)}
+                        >
+                          🎁 Get Bonus
+                        </Link>
+                      </li>
+                    </>
+                  ) : (
+                    // Regular User Navigation
+                    <>
+                      <li>
+                        <Link
+                          href="/dashboard"
+                          className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                          onClick={() => setNavigationOpen(false)}
+                        >
+                          Your Projects
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href="/dashboard/getbonus"
+                          className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                          onClick={() => setNavigationOpen(false)}
+                        >
+                          🎁 Get Bonus
+                        </Link>
+                      </li>
+                      <li>
+                        <Link 
+                          href="/createproject"
+                          className="block"
+                          onClick={() => setNavigationOpen(false)}
+                        >
+                          <Button
+                            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-white dark:hover:bg-primary/90 dark:hover:text-white"
+                          >
+                            Create Project
+                          </Button>
+                        </Link>
+                      </li>
+                      {userProfile && (
+                        <li className="block">
+                          <div className="text-sm font-medium text-black dark:text-white">
+                            Balance: ${userProfile.balance.toFixed(2)}
+                          </div>
+                        </li>
+                      )}
+                    </>
                   )}
                 </>
               ) : (
+                // Non-authenticated user navigation
                 <>
                   <li>
                     <Link
                       href="/"
-                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                      className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                      onClick={() => setNavigationOpen(false)}
                     >
                       Project Types we Cover
                     </Link>
@@ -360,7 +410,8 @@ const Header = () => {
                   <li>
                     <Link 
                       href="/dashboard" 
-                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                      className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                      onClick={() => setNavigationOpen(false)}
                     >
                       Academic Fields & Subjects
                     </Link>
@@ -368,7 +419,8 @@ const Header = () => {
                   <li>
                     <Link 
                       href="/" 
-                      className="text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                      className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
+                      onClick={() => setNavigationOpen(false)}
                     >
                       Reviews
                     </Link>
@@ -377,125 +429,125 @@ const Header = () => {
               )}
             </ul>
           </nav>
+        </div>
 
-          <div className="flex items-center gap-6 mt-7 xl:mt-0">
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? (
-                <span aria-hidden="true">🌞</span>
-              ) : (
-                <span aria-hidden="true">🌙</span>
-              )}
-            </button>
-
-            {user && (
-              <>
-                <div className="relative">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="relative">
-                        <Bell className="h-5 w-5 dark:text-gray-50" />
-                        {totalUnreadMessages > 0 && (
-                          <div className="absolute -top-2 -right-2 flex items-center justify-center">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
-                              {totalUnreadMessages}
-                            </span>
-                          </div>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950 z-[999] mt-2">
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {Object.entries(chatNotifications).length > 0 ? (
-                          Object.entries(chatNotifications).map(([orderId, count]) => (
-                            <div
-                              key={orderId}
-                              onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
-                              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
-                            >
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
-                                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                                  {count}
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                Click to view messages
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-center py-4 text-gray-500">No new messages</p>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-              </>
-            )}
-
-            {user ? (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage 
-                        src={getAvatarDetails().image} 
-                        alt="Profile"
-                        className="object-cover"
-                        priority
-                      />
-                      <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
-                  align="end" 
-                  forceMount
-                  sideOffset={5}
-                >
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
-                        {user.displayName || 'New User'}
-                      </p>
-                      <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
-                        {userProfile?.email || user?.email || ''}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="w-full">
-                      <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
-                      <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
-                    <span className="text-gray-900 dark:text-gray-50">Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              </>
+        <div className="flex items-center gap-6 xl:ml-auto">
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <span aria-hidden="true">🌞</span>
             ) : (
-              <div className="flex items-center gap-6">
-                <Link href="/auth/signin">
-                  <Button variant="ghost">Sign in</Button>
-                </Link>
-                <Link href="/auth/signup">
-                  <Button>Sign up</Button>
-                </Link>
-              </div>
+              <span aria-hidden="true">🌙</span>
             )}
-          </div>
+          </button>
+
+          {user && (
+            <>
+              <div className="relative">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5 dark:text-gray-50" />
+                      {totalUnreadMessages > 0 && (
+                        <div className="absolute -top-2 -right-2 flex items-center justify-center">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                            {totalUnreadMessages}
+                          </span>
+                        </div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950 z-[999] mt-2">
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {Object.entries(chatNotifications).length > 0 ? (
+                        Object.entries(chatNotifications).map(([orderId, count]) => (
+                          <div
+                            key={orderId}
+                            onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                                {count}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              Click to view messages
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-4 text-gray-500">No new messages</p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+            </>
+          )}
+
+          {user ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage 
+                      src={getAvatarDetails().image} 
+                      alt="Profile"
+                      className="object-cover"
+                      priority
+                    />
+                    <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
+                align="end" 
+                forceMount
+                sideOffset={5}
+              >
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
+                      {user.displayName || 'New User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
+                      {userProfile?.email || user?.email || ''}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="w-full">
+                    <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
+                    <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
+                  <span className="text-gray-900 dark:text-gray-50">Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <div className="flex items-center gap-6">
+              <Link href="/auth/signin">
+                <Button variant="ghost">Sign in</Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button>Sign up</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -159,7 +159,7 @@ export default function ChooseTutorPage() {
           {/* Main Content - Tutor List */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-2 lg:order-1">
            
-              <h1 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">Choose an expert for your project</h1>
+              <h1 className="text-xl sm:text-2xl text-gray-700 dark:text-secondary-gray-50 font-bold mb-2 sm:mb-4">Choose an expert for your project</h1>
               <Link href={`/orders/${orderId}`}>
                 <p className="text-muted-foreground mb-2">
                   Order #{orderId.slice(0, 8)}

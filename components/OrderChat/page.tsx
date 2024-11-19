@@ -22,10 +22,11 @@ interface OrderChatProps {
   hasUnreadMessages?: boolean;
 }
 
-interface Message {
+interface BiddingMessage {
   message: string;
   sender: string;
   timestamp: string;
+  tutorId: string;
   pending?: boolean;
 }
 
@@ -60,7 +61,7 @@ const hasAnyUnreadMessages = (notifications: Record<string, number>) => {
 
 export default function OrderChat({ orderid, onClose, tutorid, tutorname, profile_pic, title, chatType, hasUnreadMessages }: OrderChatProps) {
   const [showChatList, setShowChatList] = useState(chatType === 'active');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<BiddingMessage[]>([]);
   const [activeOrders, setActiveOrders] = useState<ChatOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<ChatOrder | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -161,35 +162,45 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
   // Update the message listener useEffect
   useEffect(() => {
     const currentOrderId = selectedOrder?.id || orderid;
+    const currentTutorId = selectedOrder?.tutorid || tutorid;
     if (!currentOrderId) return;
 
     const messagesRef = collection(db, 'messages');
-    const q = query(
-      messagesRef,
-      where('orderid', '==', currentOrderId)
-    );
+    let q;
+
+    if (chatType === 'bidding') {
+      // For bidding chats, query messages specific to tutor
+      q = query(
+        messagesRef,
+        where('orderid', '==', currentOrderId),
+        where('tutorId', '==', currentTutorId)
+      );
+    } else {
+      // For active chats, use existing query
+      q = query(
+        messagesRef,
+        where('orderid', '==', currentOrderId)
+      );
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
         const messageDoc = snapshot.docs[0];
         const messageData = messageDoc.data();
         if (messageData.messages && Array.isArray(messageData.messages)) {
-          const sortedMessages = [...messageData.messages].sort((a: Message, b: Message) => 
+          const sortedMessages = [...messageData.messages].sort((a: BiddingMessage, b: BiddingMessage) => 
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
           setMessages(sortedMessages);
         }
       }
-    }, (error) => {
-      console.error('Error listening to messages:', error);
     });
 
-    // Cleanup subscription
     return () => {
       unsubscribe();
       setMessages([]); // Clear messages when unmounting
     };
-  }, [selectedOrder?.id, orderid]); // Add both IDs to dependency array
+  }, [selectedOrder?.id, orderid, selectedOrder?.tutorid, tutorid, chatType]);
 
   // Update handleOrderSelect to properly switch chats
   const handleOrderSelect = async (order: ChatOrder) => {
@@ -204,18 +215,20 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     }
   };
 
-  // Update handleSendMessage to ensure correct orderid is used
+  // Update handleSendMessage for bidding chats
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
     
-    // Use the selected order's ID or the prop orderid
     const currentOrderId = selectedOrder?.id || orderid;
-    if (!currentOrderId) return;
+    const currentTutorId = selectedOrder?.tutorid || tutorid;
+    if (!currentOrderId || !currentTutorId) return;
 
     const messageData = {
       message: newMessage.trim(),
       sender: user.uid,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      tutorId: currentTutorId,
+      isBidding: chatType === 'bidding'
     };
 
     const uiMessageData = {
@@ -230,12 +243,26 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
 
     try {
       const messagesRef = collection(db, 'messages');
-      const q = query(messagesRef, where('orderid', '==', currentOrderId));
+      let q;
+
+      if (chatType === 'bidding') {
+        // For bidding chats, query messages specific to tutor
+        q = query(
+          messagesRef,
+          where('orderid', '==', currentOrderId),
+          where('tutorId', '==', currentTutorId)
+        );
+      } else {
+        // For active chats, use existing query
+        q = query(messagesRef, where('orderid', '==', currentOrderId));
+      }
+
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
         await addDoc(messagesRef, {
           orderid: currentOrderId,
+          tutorId: currentTutorId,
           messages: [messageData]
         });
       } else {
@@ -252,9 +279,13 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
       const recipientId = selectedOrder?.tutorid || tutorid;
       if (recipientId) {
         const notificationsRef = collection(db, 'notifications');
+        const notificationId = chatType === 'bidding' 
+          ? `bidding_${orderid}_${recipientId}`
+          : orderid;
+
         const notificationQuery = query(
           notificationsRef,
-          where('orderid', '==', currentOrderId),
+          where('orderid', '==', notificationId),
           where('userid', '==', recipientId)
         );
         
@@ -263,7 +294,7 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
         if (notificationSnapshot.empty) {
           // Create new notification
           await addDoc(notificationsRef, {
-            orderid: currentOrderId,
+            orderid: notificationId,
             userid: recipientId,
             message: `New message in ${selectedOrder?.title || title}`,
             timestamp: new Date().toISOString(),
@@ -345,213 +376,236 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
   // Add to existing state
   const { chatNotifications, markMessagesAsRead } = useChatNotifications();
 
+  const [tutors, setTutors] = useState<any[]>([]);
+
+  // Add effect to fetch tutors for bidding chat
+  useEffect(() => {
+    const fetchTutors = async () => {
+      if (chatType !== 'bidding') return;
+
+      try {
+        const tutorsRef = collection(db, 'tutors');
+        const tutorsSnapshot = await getDocs(tutorsRef);
+        const tutorsData = tutorsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setTutors(tutorsData);
+      } catch (error) {
+        console.error('Error fetching tutors:', error);
+      }
+    };
+
+    fetchTutors();
+  }, [chatType]);
+
+  // Add state for bidding chat
+  const [biddingTutors, setBiddingTutors] = useState<any[]>([]);
+  const [selectedTutor, setSelectedTutor] = useState<any>(null);
+
+  // Add effect to fetch tutors for bidding chat
+  useEffect(() => {
+    const fetchBiddingTutors = async () => {
+      if (chatType !== 'bidding') return;
+
+      try {
+        const tutorsRef = collection(db, 'tutors');
+        const tutorsSnapshot = await getDocs(tutorsRef);
+        const tutorsData = tutorsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setBiddingTutors(tutorsData);
+      } catch (error) {
+        console.error('Error fetching tutors:', error);
+      }
+    };
+
+    fetchBiddingTutors();
+  }, [chatType]);
+
   return (
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-300 dark:border-secondary-gray-600"
+        className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-300"
         onClick={onClose}
       />
       
       {/* Chat Panel */}
-      <div 
-        style={{
-          position: 'fixed',
-          right: '24px',
-          bottom: '100px',
-          zIndex: 50
-        }}
-        className="h-[600px] w-[400px] bg-white dark:bg-gray-900 
-        shadow-xl transition-all duration-300 ease-in-out
-        rounded-lg border border-secondary-gray-200 dark:border-secondary-gray-700 
-        flex flex-col translate-x-0 relative"
-      >
-        {/* Show red dot if there are any unread messages */}
-        {hasAnyUnreadMessages(chatNotifications) && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center">
-            <span className="text-xs font-bold text-white">•</span>
-          </div>
-        )}
-
-        {chatType === 'active' ? (
+      <div className="fixed right-6 bottom-6 h-[600px] w-[400px] bg-white dark:bg-gray-900 
+        shadow-xl rounded-lg border border-gray-200 dark:border-gray-700 
+        flex flex-col z-50">
+        {showChatList ? (
           <>
-            {showChatList ? (
-              <>
-                {/* Chat List Header */}
-                <div className="p-4 border-b border-secondary-gray-200 dark:border-secondary-gray-600 flex justify-between items-center">
-                  <h2 className="font-semibold text-lg text-dark dark:text-white">Active Chats</h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+            {/* Chat List Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h2 className="font-semibold text-lg">
+                {chatType === 'bidding' ? `Bidding Chats - Order #${orderid.slice(0, 8)}` : 'Active Chats'}
+              </h2>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
 
-                {/* Chat List */}
-                <div className="flex-1 overflow-y-auto">
-                  {loadingChats ? (
-                    <div className="space-y-4 p-4">
-                      {[1, 2, 3].map((i) => (
-                        <div 
-                          key={i} 
-                          className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-800 animate-pulse"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-                            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
-                          </div>
-                        </div>
-                      ))}
+            {/* Chat List */}
+            <div className="flex-1 overflow-y-auto">
+              {chatType === 'bidding' ? (
+                // Show tutor list for bidding
+                biddingTutors.map((tutor) => (
+                  <div
+                    key={tutor.id}
+                    onClick={() => handleOrderSelect({
+                      id: orderid,
+                      title: title || '',
+                      tutorid: tutor.tutorid,
+                      tutor_name: tutor.tutor_name,
+                      profile_picture: tutor.profile_picture,
+                      status: 'bidding'
+                    })}
+                    className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={tutor.profile_picture || '/default-avatar.png'} />
+                      <AvatarFallback>{tutor.tutor_name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="font-medium">{tutor.tutor_name}</h3>
+                      <p className="text-sm text-gray-500">Click to chat</p>
                     </div>
-                  ) : activeOrders.length > 0 ? (
-                    activeOrders.map((order) => (
-                      <div
-                        key={order.id}
-                        onClick={() => handleOrderSelect(order)}
-                        className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800"
-                      >
-                        <Avatar className="h-10 w-10 rounded-full overflow-hidden">
-                          <AvatarImage 
-                            src={order.profile_picture} 
-                            alt={order.tutor_name}
-                            className={avatarImageStyles}
-                            style={{
-                              objectFit: 'cover',
-                              aspectRatio: '1/1'
-                            }}
-                          />
-                          <AvatarFallback className="bg-primary text-white">
-                            {order.tutor_name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-dark dark:text-white">{order.title}</h3>
-                          <p className="text-sm text-gray-500">#{order.id.slice(0, 8)}</p>
-                        </div>
-                        {chatNotifications[order.id] > 0 && (
-                          <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
-                            {chatNotifications[order.id]}
-                          </span>
-                        )}
+                    {chatNotifications[`bidding_${orderid}_${tutor.tutorid}`] > 0 && (
+                      <div className="flex items-center justify-center">
+                        <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                          {chatNotifications[`bidding_${orderid}_${tutor.tutorid}`]}
+                        </span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      No active chats found
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Chat Header */}
-                <div className="p-4 border-b border-secondary-gray-200 dark:border-secondary-gray-600 flex items-center gap-3">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleBack}
-                    className="mr-2 text-dark dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                  <Avatar className="h-8 w-8 rounded-full overflow-hidden">
-                    <AvatarImage 
-                      src={selectedOrder?.profile_picture || tutorData?.profile_picture || '/default-avatar.png'} 
-                      alt={selectedOrder?.tutor_name || tutorData?.tutor_name || 'Expert'}
-                      className={avatarImageStyles}
-                      style={{
-                        objectFit: 'cover',
-                        aspectRatio: '1/1'
-                      }}
-                    />
-                    <AvatarFallback className="bg-primary text-white">
-                      {(selectedOrder?.tutor_name || tutorData?.tutor_name || 'EX').substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <h2 className="font-semibold text-dark dark:text-white">
-                      {selectedOrder?.tutor_name || tutorData?.tutor_name || 'Expert'}
-                    </h2>
-                    <p className="text-sm text-dark dark:text-white">Online</p>
+                    )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+                ))
+              ) : (
+                // Show active chats list
+                activeOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    onClick={() => handleOrderSelect(order)}
+                    className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800"
                   >
-                    <X className="h-4 w-4 text-dark dark:text-white" />
-                  </Button>
-                </div>
-
-                {/* Messages Container */}
-                <div className="flex-1 overflow-y-auto p-4">
-                  {messages.length > 0 ? (
-                    messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`mb-4 ${
-                          msg.sender === user?.uid ? 'ml-auto text-right text-dark dark:text-white' : 'mr-auto text-dark dark:text-white'
-                        }`}
-                      >
-                        <div
-                          className={`inline-block p-3 rounded-lg ${
-                            msg.sender === user?.uid
-                              ? 'bg-primary text-white'
-                              : 'bg-gray-100 dark:bg-gray-800'
-                          } ${msg.pending ? 'opacity-70' : ''}`}
-                        >
-                          {msg.message}
-                          {msg.pending && (
-                            <span className="ml-2 text-xs">●</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {new Date(msg.timestamp).toLocaleTimeString()}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-gray-500 text-center text-dark dark:text-white">
-                      No messages yet
+                    <Avatar className="h-10 w-10 rounded-full overflow-hidden">
+                      <AvatarImage 
+                        src={order.profile_picture} 
+                        alt={order.tutor_name}
+                        className={avatarImageStyles}
+                        style={{
+                          objectFit: 'cover',
+                          aspectRatio: '1/1'
+                        }}
+                      />
+                      <AvatarFallback className="bg-primary text-white">
+                        {order.tutor_name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-dark dark:text-white">{order.title}</h3>
+                      <p className="text-sm text-gray-500">#{order.id.slice(0, 8)}</p>
                     </div>
-                  )}
-                </div>
-
-                {/* Message Input */}
-                <div className="p-4 border-t border-secondary-gray-200 dark:border-secondary-gray-600 mb-safe">
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type a message..."
-                      className="flex-1 h-10 text-dark dark:text-white placeholder:text-dark dark:placeholder:text-white"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleSendMessage();
-                        }
-                      }}
-                    />
-                    <Button 
-                      size="icon" 
-                      className="h-10 w-10 shrink-0 text-dark dark:text-white"
-                      onClick={handleSendMessage}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                    {chatNotifications[order.id] > 0 && (
+                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
+                        {chatNotifications[order.id]}
+                      </span>
+                    )}
                   </div>
-                </div>
-              </>
-            )}
+                ))
+              )}
+            </div>
           </>
         ) : (
-          <div className="p-4 text-center text-gray-500">
-            Bidding chat functionality coming soon...
-          </div>
+          <>
+            {/* Chat Header */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBack}
+                className="mr-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Avatar className="h-8 w-8">
+                <AvatarImage 
+                  src={selectedOrder?.profile_picture || profile_pic || '/default-avatar.png'} 
+                  alt={selectedOrder?.tutor_name || tutorname || 'Expert'}
+                />
+                <AvatarFallback>
+                  {(selectedOrder?.tutor_name || tutorname || 'EX').substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h2 className="font-semibold">
+                  {selectedOrder?.tutor_name || tutorname || 'Expert'}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {chatType === 'bidding' ? 'Bidding Chat' : 'Active Chat'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Messages Container */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`mb-4 ${
+                    msg.sender === user?.uid ? 'ml-auto text-right' : 'mr-auto'
+                  }`}
+                >
+                  <div
+                    className={`inline-block p-3 rounded-lg ${
+                      msg.sender === user?.uid
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 dark:bg-gray-800'
+                    } ${msg.pending ? 'opacity-70' : ''}`}
+                  >
+                    {msg.message}
+                    {msg.pending && (
+                      <span className="ml-2 text-xs">●</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Message Input */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <Button 
+                  size="icon"
+                  onClick={handleSendMessage}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </>

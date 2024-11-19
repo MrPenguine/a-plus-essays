@@ -306,7 +306,7 @@ export default function ChatPage() {
             variant="outline"
             size="icon"
             onClick={() => updatePageCount(pageCount - 1)}
-            className="h-10 w-10"
+            className="h-10 w-10 bg-primary text-white"
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -473,7 +473,7 @@ export default function ChatPage() {
             />
             <div className="p-3 border-t">
               <Button 
-                className="w-full"
+                className="w-full text-secondary-gray-50"
                 onClick={handleSubmit}
                 disabled={!date}
               >
@@ -619,9 +619,9 @@ export default function ChatPage() {
 
       <div className="flex-1 overflow-y-auto p-4">
         {displayedMessages.map((msg) => (
-          <div key={msg.id} className="space-y-2 mb-4">
+          <div key={msg.id} className="mb-4">
             <div className={`flex items-start gap-3 ${
-              msg.sender === 'user' ? 'justify-end' : 'justify-start'
+              msg.sender === 'user' ? 'ml-auto text-right' : 'mr-auto'
             }`}>
               {msg.sender === 'expert' && (
                 <Avatar className="h-8 w-8">
@@ -630,12 +630,15 @@ export default function ChatPage() {
                 </Avatar>
               )}
               
-              <div className={`max-w-[80%] rounded-lg p-3 ${
+              <div className={`inline-block p-3 rounded-lg ${
                 msg.sender === 'user'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted'
+                  ? 'bg-primary text-white ml-auto'
+                  : 'bg-gray-100 dark:bg-gray-800 text-dark dark:text-white'
               }`}>
                 <p className="whitespace-pre-wrap">{msg.text}</p>
+                <div className="text-xs text-gray-500 mt-1">
+                  {msg.timestamp.toLocaleTimeString()}
+                </div>
               </div>
             </div>
 
@@ -645,6 +648,7 @@ export default function ChatPage() {
                   <Button 
                     onClick={handleGoAhead}
                     size="sm"
+                    className="bg-primary text-white hover:bg-primary/90"
                   >
                     Go ahead!
                   </Button>
@@ -652,6 +656,7 @@ export default function ChatPage() {
                     variant="outline"
                     onClick={() => router.push('/createproject')}
                     size="sm"
+                    className="bg-primary text-white hover:bg-primary/90"
                   >
                     No, skip it
                   </Button>
@@ -665,7 +670,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleSubjectSelect('English')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   English
                 </Button>
@@ -673,7 +678,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleSubjectSelect('Business')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   Business
                 </Button>
@@ -681,7 +686,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleSubjectSelect('Nursing')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   Nursing
                 </Button>
@@ -689,7 +694,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleSubjectSelect('History')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   History
                 </Button>
@@ -697,7 +702,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleSubjectSelect('Other')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90 col-span-2"
+                  className="bg-primary text-white hover:bg-primary/90 col-span-2"
                 >
                   Choose your subject
                 </Button>
@@ -710,7 +715,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleEducationLevel('High School')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   High School
                 </Button>
@@ -718,7 +723,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleEducationLevel('Undergraduate')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   Undergraduate
                 </Button>
@@ -726,7 +731,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleEducationLevel('Masters')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   Masters
                 </Button>
@@ -734,7 +739,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleEducationLevel('PhD')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   PhD
                 </Button>
@@ -747,7 +752,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleCountType('pages')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   Pages
                 </Button>
@@ -755,7 +760,7 @@ export default function ChatPage() {
                   variant="outline"
                   size="sm" 
                   onClick={() => handleCountType('words')}
-                  className="bg-[#15171c] text-white hover:bg-[#15171c]/90"
+                  className="bg-primary text-white hover:bg-primary/90"
                 >
                   Words
                 </Button>
@@ -784,7 +789,7 @@ export default function ChatPage() {
               <div className="ml-11 mt-2">
                 <Button 
                   onClick={() => setShowDescribeModal(true)}
-                  className="w-full"
+                  className="w-full text-secondary-gray-50"
                 >
                   Describe project →
                 </Button>
@@ -794,12 +799,12 @@ export default function ChatPage() {
         ))}
 
         {showTyping && (
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 mb-4">
             <Avatar className="h-8 w-8">
               <AvatarImage src="/images/expert-avatar.png" />
               <AvatarFallback>EX</AvatarFallback>
             </Avatar>
-            <div className="bg-muted rounded-lg p-3">
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
               <div className="flex gap-1">
                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:0.2s]" />
@@ -811,10 +816,9 @@ export default function ChatPage() {
 
         <div ref={messagesEndRef} />
       </div>
-
       {/* Description Modal */}
       <Dialog open={showDescribeModal} onOpenChange={setShowDescribeModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-gray-100 dark:bg-gray-950">
           <DialogHeader>
             <DialogTitle>Describe your project</DialogTitle>
             <DialogDescription>
@@ -832,11 +836,7 @@ export default function ChatPage() {
               className="min-h-[150px] bg-background"
             />
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="gap-2">
-                <Paperclip className="h-4 w-4" />
-                Attach file
-              </Button>
-              <span className="text-xs text-muted-foreground">Up to 15 MB</span>
+              <p className="text-sm text-gray-500">You will attach additional files later</p>
             </div>
             <div className="flex justify-end gap-2">
               <Button 
@@ -845,7 +845,7 @@ export default function ChatPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleDescriptionSubmit}>
+              <Button onClick={handleDescriptionSubmit} className="bg-primary text-secondary-gray-50 hover:bg-primary/90">
                 Submit
               </Button>
             </div>

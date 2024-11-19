@@ -596,4 +596,15 @@ export const dbService = {
       throw error;
     }
   },
+  async isUserAdmin(userId: string): Promise<boolean> {
+    try {
+      const adminsRef = collection(db, 'admins');
+      const q = query(adminsRef, where('useruid', '==', userId));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  }
 }; 
