@@ -1,17 +1,11 @@
 import { NextResponse } from 'next/server';
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
 export async function GET(
   request: Request,
-  context: RouteContext
-) {
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
   try {
-    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${context.params.id}/`, {
+    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${params.id}/`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,
