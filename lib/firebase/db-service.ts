@@ -74,22 +74,20 @@ interface OrderUpdate {
   discountType?: string | null;
   updatedAt?: string;
   documents?: {
-    documents: {
-      client: Array<{
-        date: string;
-        files: Array<{
-          fileName: string;
-          url: string;
-        }>;
+    client: Array<{
+      date: string;
+      files: Array<{
+        fileName: string;
+        url: string;
       }>;
-      tutor: Array<{
-        date: string;
-        files: Array<{
-          fileName: string;
-          url: string;
-        }>;
+    }>;
+    tutor: Array<{
+      date: string;
+      files: Array<{
+        fileName: string;
+        url: string;
       }>;
-    };
+    }>;
   };
   assignment_type?: string;
   deadline?: string;
