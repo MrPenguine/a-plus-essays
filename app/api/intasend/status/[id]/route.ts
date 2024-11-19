@@ -1,11 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+type Props = {
+  params: {
+    id: string;
+  };
+};
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+  _request: NextRequest,
+  props: Props
+): Promise<NextResponse> {
   try {
-    const { id } = params;
+    const { id } = props.params;
 
     const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${id}/`, {
       method: 'GET',
