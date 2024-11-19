@@ -1,21 +1,13 @@
 // @ts-nocheck
 
-import { NextRequest, NextResponse } from 'next/server';
-
-type Props = {
-  params: {
-    id: string;
-  };
-};
+import { NextResponse } from 'next/server';
 
 export async function GET(
-  _request: NextRequest,
-  props: Props
+  request: Request,
+  { params }: { params: { id: string } }
 ): Promise<NextResponse> {
   try {
-    const { id } = props.params;
-
-    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${id}/`, {
+    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${params.id}/`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,
