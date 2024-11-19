@@ -14,31 +14,16 @@ export default function MobileLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Add mounting check
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return null;
-  }
-
   return (
-    <ThemeProvider 
-      attribute="class" 
-      defaultTheme="system" 
-      enableSystem 
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
       disableTransitionOnChange
-      // Force client-side rendering for theme
-      suppressHydrationWarning
     >
       <div className={inter.className}>
         <ProtectedRoute>
-          <main className="flex-grow bg-background dark:bg-gray-950">{children}</main>
-          <Toaster position="top-center" />
+          {children}
         </ProtectedRoute>
       </div>
     </ThemeProvider>
