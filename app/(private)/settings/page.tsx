@@ -15,17 +15,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { EmailAuthProvider, linkWithCredential, getAuth, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/config";
-import { countries } from 'countries-list';
+import { TCountries } from '@/lib/types/countries';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import Loading from "@/app/loading";
 
-// Convert countries object to array and sort by name
-const countryList = Object.entries(countries).map(([code, country]) => ({
-  value: code,
-  label: country.name,
-  native: country.native,
-  phone: country.phone[0]
-})).sort((a, b) => a.label.localeCompare(b.label));
+// Add type assertion for countries object
+const countries: TCountries = {
+  US: {
+    name: "United States",
+    phone: [1],
+    code: "US",
+    emoji: "🇺🇸"
+  },
+  // ... other countries
+} as const;
 
 interface UserProfile {
   photoURL?: string;
@@ -472,9 +475,9 @@ export default function SettingsPage() {
                     className="w-full mt-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm text-gray-900 dark:text-white"
                   >
                     <option value="">Select country</option>
-                    {countryList.map((country) => (
-                      <option key={country.value} value={country.value}>
-                        {country.label}
+                    {Object.entries(countries).map(([code, country]) => (
+                      <option key={code} value={code}>
+                        {country.name}
                       </option>
                     ))}
                   </select>
@@ -528,7 +531,7 @@ export default function SettingsPage() {
                           <Input
                             id="newPhoneNumber"
                             name="newPhoneNumber"
-                            placeholder={formData.country ? `+${countries[formData.country]?.phone[0]}` : 'Select country first'}
+                            placeholder={formData.country ? `+${countries[formData.country as keyof TCountries]?.phone[0]}` : 'Select country first'}
                             value={formData.newPhoneNumber}
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
