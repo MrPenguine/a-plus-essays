@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';

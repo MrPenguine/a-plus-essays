@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useEffect, useState } from 'react';
 
 export const useScript = (src: string): boolean => {

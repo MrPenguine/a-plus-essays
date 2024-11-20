@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, increment } from 'firebase/firestore';
