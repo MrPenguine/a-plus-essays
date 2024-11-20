@@ -74,8 +74,6 @@ const Header = () => {
 
   const fetchUserProfile = async (uid: string) => {
     try {
-      if (!uid) {
-        console.error('No UID provided');
       if (!uid || !user) {
         console.error('No UID or user provided');
         return;
@@ -87,8 +85,6 @@ const Header = () => {
       if (userSnapshot.exists()) {
         setUserProfile(userSnapshot.data() as UserProfile);
       } else {
-        console.error('User document not found');
-        await handleLogout();
         console.log('User document not found, creating new user...');
         const userData = {
           userid: uid,
@@ -98,12 +94,15 @@ const Header = () => {
           createdAt: new Date().toISOString(),
           isAnonymous: false
         };
-        await dbService.createUser(userData);
-        setUserProfile(userData);
+        try {
+          await dbService.createUser(userData);
+          setUserProfile(userData);
+        } catch (error) {
+          console.error('Error creating user profile:', error);
+          await handleLogout();
+        }
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      await handleLogout();
       console.error('Error fetching/creating user profile:', error);
       if (error instanceof Error && error.message.includes('permission-denied')) {
         await handleLogout();
