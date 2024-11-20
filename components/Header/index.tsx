@@ -284,9 +284,10 @@ const Header = () => {
             <div className="flex items-center h-[80px]">
               <div className="h-[76px] relative w-[200px]">
                 <Image 
-                  src="/images/logo.svg" 
+                  src="/images/logo.png" 
                   alt="A+ Essays"
                   fill
+                  sizes="(max-width: 768px) 200px, 200px"
                   className="object-contain"
                   style={{ objectPosition: 'left center' }}
                   priority
@@ -302,6 +303,50 @@ const Header = () => {
             >
               {theme === "dark" ? "🌞" : "🌙"}
             </button>
+
+            {user && (
+              <div className="relative">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5 dark:text-gray-50" />
+                      {totalUnreadMessages > 0 && (
+                        <div className="absolute -top-2 -right-2 flex items-center justify-center">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                            {totalUnreadMessages}
+                          </span>
+                        </div>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950">
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {Object.entries(chatNotifications).length > 0 ? (
+                        Object.entries(chatNotifications).map(([orderId, count]) => (
+                          <div
+                            key={orderId}
+                            onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                                {count}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              Click to view messages
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-4 text-gray-500">No new messages</p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
 
             <button
               onClick={() => setNavigationOpen(!navigationOpen)}
@@ -425,7 +470,7 @@ const Header = () => {
                 <>
                   <li>
                     <Link
-                      href="/"
+                      href="/project-types"
                       className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
                       onClick={() => setNavigationOpen(false)}
                     >
@@ -434,7 +479,7 @@ const Header = () => {
                   </li>
                   <li>
                     <Link 
-                      href="/dashboard" 
+                      href="/academic-fields" 
                       className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
                       onClick={() => setNavigationOpen(false)}
                     >
@@ -443,11 +488,11 @@ const Header = () => {
                   </li>
                   <li>
                     <Link 
-                      href="/" 
+                      href="/faq" 
                       className="block text-sm font-medium text-black hover:text-primary dark:text-white dark:hover:text-primary"
                       onClick={() => setNavigationOpen(false)}
                     >
-                      Reviews
+                      FAQ
                     </Link>
                   </li>
                 </>
@@ -598,47 +643,53 @@ const Header = () => {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage 
-                    src={getAvatarDetails().image} 
-                    alt="Profile"
-                    className="object-cover"
-                    priority
-                  />
-                  <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
-              align="end" 
-              forceMount
-              sideOffset={5}
-            >
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
-                    {user.displayName || 'New User'}
-                  </p>
-                  <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
-                    {userProfile?.email || user?.email || ''}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="w-full">
-                  <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
-                  <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
-                <span className="text-gray-900 dark:text-gray-50">Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage 
+                      src={getAvatarDetails().image} 
+                      alt="Profile"
+                      className="object-cover"
+                      priority
+                    />
+                    <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
+                align="end" 
+                forceMount
+                sideOffset={5}
+              >
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
+                      {user.displayName || 'New User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
+                      {userProfile?.email || user?.email || ''}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="w-full">
+                    <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
+                    <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="md:hidden">
+                  <Link href="/notifications" className="w-full">
+                    <Bell className="mr-2 h-4 w-4 dark:text-gray-50" />
+                    <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Notifications</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center">
+                  <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
+                  <span className="text-gray-900 dark:text-gray-50">Log out ({user.displayName || 'User'})</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <div className="flex items-center gap-6">
@@ -646,7 +697,7 @@ const Header = () => {
                 <Button variant="ghost">Sign in</Button>
               </Link>
               <Link href="/auth/signup">
-                <Button>Sign up</Button>
+                <Button className="bg-primary hover:bg-primary/90 text-white dark:hover:bg-primary/90 dark:hover:text-white">Sign up</Button>
               </Link>
             </div>
           )}

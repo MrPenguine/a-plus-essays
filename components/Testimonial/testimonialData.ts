@@ -5,34 +5,34 @@ import { Testimonial } from "@/types/testimonial";
 export const testimonialData: Testimonial[] = [
   {
     id: 1,
-    name: "Devid Smith",
-    designation: "Founter @democompany",
+    name: "Anonymous Client",
+    designation: "University Student",
     image: image1,
     content:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris hendrerit, ligula sit amet cursus tincidunt, lorem sem elementum nisi, convallis fringilla ante nibh non urna.",
+      "The essay writing service exceeded my expectations. They delivered a well-researched paper ahead of schedule and were very responsive to my requirements.",
   },
   {
     id: 2,
-    name: "Jhon Abraham",
-    designation: "Founter @democompany",
+    name: "Anonymous Client",
+    designation: "Graduate Student",
     image: image2,
     content:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris hendrerit, ligula sit amet cursus tincidunt, lorem sem elementum nisi, convallis fringilla ante nibh non urna.",
+      "I was impressed by the quality of work and attention to detail. The writer clearly understood the topic and provided excellent analysis with proper citations.",
   },
   {
     id: 3,
-    name: "Devid Smith",
-    designation: "Founter @democompany",
+    name: "Anonymous Client",
+    designation: "Undergraduate Student",
     image: image1,
     content:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris hendrerit, ligula sit amet cursus tincidunt, lorem sem elementum nisi, convallis fringilla ante nibh non urna.",
+      "Great experience working with this service. They helped me with my dissertation research and writing, delivering exceptional quality work that exceeded my expectations.",
   },
   {
     id: 4,
-    name: "Jhon Abraham",
-    designation: "Founter @democompany",
+    name: "Anonymous Client",
+    designation: "PhD Candidate",
     image: image2,
     content:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris hendrerit, ligula sit amet cursus tincidunt, lorem sem elementum nisi, convallis fringilla ante nibh non urna.",
+      "The research paper I received was thoroughly researched and well-structured. The writer's expertise in the subject matter was evident throughout the work.",
   },
 ];

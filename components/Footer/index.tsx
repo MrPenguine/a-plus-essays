@@ -1,8 +1,12 @@
 "use client";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { useAuth } from "@/lib/firebase/hooks/useAuth";
+import Link from "next/link";
 
 const Footer = () => {
+  const { user } = useAuth();
+
   return (
     <>
       <footer className="bg-white dark:bg-gray-900">
@@ -28,22 +32,22 @@ const Footer = () => {
                 viewport={{ once: true }}
                 className="animate_top w-1/2 lg:w-1/4"
               >
-                <a href="/" className="relative">
+                <Link href="/" className="relative">
                   <Image
                     width={200}
                     height={160}
-                    src="/images/logo.svg"
-                    alt="Logo"
+                    src="/images/logo.png"
+                    alt="A+ Assists"
                     className="dark:hidden"
                   />
                   <Image
                     width={200}
                     height={160}
-                    src="/images/logo.svg"
-                    alt="Logo"
+                    src="/images/logo.png"
+                    alt="A+ Assists"
                     className="hidden dark:block"
                   />
-                </a>
+                </Link>
 
                 <p className="mb-10 mt-5 text-gray-900 dark:text-white">
                   Your academic journey, our commitment.
@@ -53,10 +57,10 @@ const Footer = () => {
                   contact
                 </p>
                 <a
-                  href="#"
+                  href="mailto:support@aplusassists.com"
                   className="text-itemtitle font-medium text-primary-900 dark:text-white"
                 >
-                  support@aplusessays.com
+                  support@aplusassists.com
                 </a>
               </motion.div>
 
@@ -107,22 +111,47 @@ const Footer = () => {
                         Academic Fields & Subjects
                       </a>
                     </li>
-                    <li>
-                      <a
-                        href="/dashboard"
-                        className="mb-3 inline-block hover:text-primary-500"
-                      >
-                        Dashboard
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="/settings"
-                        className="mb-3 inline-block hover:text-primary-500"
-                      >
-                        Settings
-                      </a>
-                    </li>
+                    {user ? (
+                      // Links for logged-in users
+                      <>
+                        <li>
+                          <a
+                            href="/dashboard"
+                            className="mb-3 inline-block hover:text-primary-500"
+                          >
+                            Dashboard
+                          </a>
+                        </li>
+                        <li>
+                          <a
+                            href="/settings"
+                            className="mb-3 inline-block hover:text-primary-500"
+                          >
+                            Settings
+                          </a>
+                        </li>
+                      </>
+                    ) : (
+                      // Links for non-logged-in users
+                      <>
+                        <li>
+                          <a
+                            href="/auth/signin"
+                            className="mb-3 inline-block hover:text-primary-500"
+                          >
+                            Sign In
+                          </a>
+                        </li>
+                        <li>
+                          <a
+                            href="/auth/signup"
+                            className="mb-3 inline-block hover:text-primary-500"
+                          >
+                            Sign Up
+                          </a>
+                        </li>
+                      </>
+                    )}
                   </ul>
                 </motion.div>
 
@@ -151,31 +180,7 @@ const Footer = () => {
                   <ul>
                     <li>
                       <a
-                        href="/"
-                        className="mb-3 inline-block hover:text-primary-500"
-                      >
-                        Company
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="/"
-                        className="mb-3 inline-block hover:text-primary-500"
-                      >
-                        Press media
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="/"
-                        className="mb-3 inline-block hover:text-primary-500"
-                      >
-                        Our Blog
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="/"
+                        href="/contact"
                         className="mb-3 inline-block hover:text-primary-500"
                       >
                         Contact Us
@@ -270,18 +275,9 @@ const Footer = () => {
               viewport={{ once: true }}
               className="animate_top"
             >
-              <ul className="flex items-center gap-8">
-                <li>
-                  <a href="#" className="hover:text-primary-500">
-                    English
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary-500">
-                    Support
-                  </a>
-                </li>
-              </ul>
+              <p>
+                &copy; {new Date().getFullYear()} A+ Assists. All rights reserved
+              </p>
             </motion.div>
 
             <motion.div
@@ -302,9 +298,18 @@ const Footer = () => {
               viewport={{ once: true }}
               className="animate_top"
             >
-              <p>
-                &copy; {new Date().getFullYear()} A+ Essays. All rights reserved
-              </p>
+              <ul className="flex items-center gap-8">
+                <li>
+                  <a href="#" className="hover:text-primary-500">
+                    English
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-primary-500">
+                    Support
+                  </a>
+                </li>
+              </ul>
             </motion.div>
 
             <motion.div

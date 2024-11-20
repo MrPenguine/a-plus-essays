@@ -11,9 +11,9 @@ const Integration = () => {
           {/* <!-- Section Title Start --> */}
           <SectionHeader
             headerInfo={{
-              title: `INTEGRATIONS`,
-              subtitle: `Remotely Maintain Your Data, From Anywhere, Anytime.`,
-              description: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. In convallis tortor eros. Donec vitae tortor lacus. Phasellus aliquam ante in maximus.`,
+              title: `WHY US`,
+              subtitle: `Remotely make your orders, from Anywhere, Anytime.`,
+              description: `Every client receives personalized attention, quality-focused service, and timely delivery. Our expert team considers your needs, delivers exceptional results, and ensures deadlines are met without compromising standards.`,
             }}
           />
 
@@ -61,7 +61,7 @@ const Integration = () => {
                 <Image
                   width={50}
                   height={50}
-                  src="./images/brand/brand-07.svg"
+                  src="/images/brand/brand-07.svg"
                   alt="Brand"
                 />
               </div>
@@ -108,7 +108,7 @@ const Integration = () => {
                 <Image
                   width={50}
                   height={50}
-                  src="./images/brand/brand-08.svg"
+                  src="/images/brand/brand-08.svg"
                   alt="Brand"
                 />
               </div>
@@ -157,7 +157,7 @@ const Integration = () => {
                 <Image
                   width={50}
                   height={50}
-                  src="./images/brand/brand-09.svg"
+                  src="/images/brand/brand-09.svg"
                   alt="Brand"
                 />
               </div>
@@ -225,7 +225,7 @@ const Integration = () => {
                 <Image
                   width={50}
                   height={50}
-                  src="./images/brand/brand-10.svg"
+                  src="/images/brand/brand-10.svg"
                   alt="Brand"
                 />
               </div>
@@ -274,7 +274,7 @@ const Integration = () => {
                 <Image
                   width={50}
                   height={50}
-                  src="./images/brand/brand-11.svg"
+                  src="/images/brand/brand-11.svg"
                   alt="Brand"
                 />
               </div>
@@ -323,7 +323,7 @@ const Integration = () => {
                 <Image
                   width={50}
                   height={50}
-                  src="./images/brand/brand-12.svg"
+                  src="/images/brand/brand-12.svg"
                   alt="Brand"
                 />
               </div>

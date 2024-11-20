@@ -13,6 +13,7 @@ import { dbService } from "@/lib/firebase/db-service";
 import { collection, query, where, updateDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { signInAnonymously } from "firebase/auth";
+import { SUBJECTS, ASSIGNMENT_TYPES }  from "@/lib/constants"
 
 const Hero = () => {
   const { user } = useAuth();
@@ -158,11 +159,11 @@ const Hero = () => {
                   required
                 >
                   <option value="">Select type of assignment</option>
-                  <option value="essay">Essay</option>
-                  <option value="research">Research Paper</option>
-                  <option value="thesis">Thesis</option>
-                  <option value="coursework">Coursework</option>
-                  <option value="other">Other</option>
+                  {ASSIGNMENT_TYPES.map((type) => (
+                    <option key={type.value} value={type.value} className="text-secondary-gray-600 dark:text-secondary-gray-300">
+                      {type.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

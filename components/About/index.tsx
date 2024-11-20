@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 
 const About = () => {
   return (
@@ -29,19 +30,13 @@ const About = () => {
               className="animate_left relative mx-auto hidden aspect-[588/526.5] md:block md:w-1/2"
             >
               <Image
-                src="/images/about/about-light-01.png"
+                src="/images/about/how-to-order-girl.png"
                 alt="About"
-                className="dark:hidden"
+                className="object-cover rounded-lg hover"
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
-              <Image
-                src="/images/about/about-dark-01.png"
-                alt="About"
-                className="hidden dark:block"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
+              
             </motion.div>
             <motion.div
               variants={{
@@ -124,35 +119,38 @@ const About = () => {
               className="animate_left md:w-1/2"
             >
               <h4 className="font-medium uppercase text-black dark:text-white">
-                Launch Your SaaS Fast
+                GET YOUR PROJECT DONE
               </h4>
               <h2 className="relative mb-6 text-3xl font-bold text-black dark:text-white xl:text-hero">
-                Packed with All Essential {"   "}
+                With expert tutors in all 
+                <br />
                 <span className="relative inline-block before:absolute before:bottom-2.5 before:left-0 before:-z-1 before:h-3 before:w-full before:bg-titlebg2 dark:before:bg-titlebgdark">
-                  Integrations
+                  Fields
                 </span>
               </h2>
               <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut
-                ultricies lacus non fermentum ultrices. Fusce consectetur le.
+                Our expert tutors are ready to help with any academic subject 
+                from math and science to humanities and business. Get matched with a qualified tutor who specializes in your field and can provide the guidance you need.
               </p>
-              <div>
-                <a
-                  href="#"
-                  className="group mt-7.5 inline-flex items-center gap-2.5 text-black hover:text-primary dark:text-white dark:hover:text-primary"
-                >
-                  <span className="duration-300 group-hover:pr-2">
-                    Know More
-                  </span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 14 14"
-                    fill="currentColor"
-                  >
-                    <path d="M10.4767 6.16701L6.00668 1.69701L7.18501 0.518677L13.6667 7.00034L7.18501 13.482L6.00668 12.3037L10.4767 7.83368H0.333344V6.16701H10.4767Z" />
-                  </svg>
-                </a>
+              <div className="animate_left">
+                <div className="group mt-7.5 inline-flex items-center gap-2.5 text-black hover:text-primary dark:text-white dark:hover:text-primary">
+                  <Link href="/createproject" className="flex items-center gap-2.5">
+                    Start Your Project
+                    <svg
+                      className="fill-current"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M10.4767 6.16664L6.00668 1.69664L7.18501 0.518311L13.6667 6.99998L7.18501 13.4816L6.00668 12.3033L10.4767 7.83331H0.333344V6.16664H10.4767Z"
+                        fill=""
+                      />
+                    </svg>
+                  </Link>
+                </div>
               </div>
             </motion.div>
             <motion.div
@@ -174,17 +172,13 @@ const About = () => {
               className="animate_right relative mx-auto hidden aspect-[588/526.5] md:block md:w-1/2"
             >
               <Image
-                src="./images/about/about-light-02.svg"
+                src="/images/about/tutors.png"
                 alt="About"
-                className="dark:hidden"
+                className="dark:hidden object-cover rounded-lg hover:scale-105 transition-all duration-300"
                 fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
-              <Image
-                src="./images/about/about-dark-02.svg"
-                alt="About"
-                className="hidden dark:block"
-                fill
-              />
+              
             </motion.div>
           </div>
         </div>
