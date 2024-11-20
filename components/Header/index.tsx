@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -63,9 +63,33 @@ const Header = () => {
   const { chatNotifications } = useChatNotifications();
   const { isAdmin } = useAdmin();
 
+  const navRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navigationOpen && navRef.current && !navRef.current.contains(event.target as Node)) {
+        setNavigationOpen(false);
+      }
+    };
+
+    const handleTouchOutside = (event: TouchEvent) => {
+      if (navigationOpen && navRef.current && !navRef.current.contains(event.target as Node)) {
+        setNavigationOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleTouchOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleTouchOutside);
+    };
+  }, [navigationOpen]);
 
   const fetchUserProfile = async (uid: string) => {
     try {
@@ -319,6 +343,7 @@ const Header = () => {
         </div>
 
         <div
+          ref={navRef}
           className={`${
             navigationOpen
               ? "block"
@@ -428,116 +453,193 @@ const Header = () => {
                 </>
               )}
             </ul>
-          </nav>
-        </div>
 
-        <div className="flex items-center gap-6 xl:ml-auto">
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
-            aria-label="Toggle theme"
-          >
-            {theme === "dark" ? (
-              <span aria-hidden="true">🌞</span>
-            ) : (
-              <span aria-hidden="true">🌙</span>
-            )}
-          </button>
-
-          {user && (
-            <>
-              <div className="relative">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
-                      <Bell className="h-5 w-5 dark:text-gray-50" />
-                      {totalUnreadMessages > 0 && (
-                        <div className="absolute -top-2 -right-2 flex items-center justify-center">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
-                            {totalUnreadMessages}
-                          </span>
-                        </div>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950 z-[999] mt-2">
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {Object.entries(chatNotifications).length > 0 ? (
-                        Object.entries(chatNotifications).map(([orderId, count]) => (
-                          <div
-                            key={orderId}
-                            onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
-                            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
-                          >
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
-                              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                                {count}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Click to view messages
-                            </p>
+            {user && (
+              <div className="mt-4 flex flex-col gap-4 xl:hidden border-t border-gray-200 dark:border-gray-700 pt-4">
+                <div className="relative">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="lg" className="relative w-full justify-start">
+                        <Bell className="h-5 w-5 mr-2 dark:text-gray-50" />
+                        <span>Notifications</span>
+                        {totalUnreadMessages > 0 && (
+                          <div className="absolute right-2 flex items-center justify-center">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                              {totalUnreadMessages}
+                            </span>
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-center py-4 text-gray-500">No new messages</p>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950">
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {Object.entries(chatNotifications).length > 0 ? (
+                          Object.entries(chatNotifications).map(([orderId, count]) => (
+                            <div
+                              key={orderId}
+                              onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
+                            >
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                                  {count}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                Click to view messages
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-center py-4 text-gray-500">No new messages</p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-            </>
-          )}
-
-          {user ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
+                <div className="flex items-center gap-3 px-2">
                   <Avatar className="h-10 w-10">
                     <AvatarImage 
                       src={getAvatarDetails().image} 
                       alt="Profile"
                       className="object-cover"
-                      priority
                     />
                     <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
                   </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
-                align="end" 
-                forceMount
-                sideOffset={5}
-              >
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-50">
                       {user.displayName || 'New User'}
-                    </p>
-                    <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {userProfile?.email || user?.email || ''}
-                    </p>
+                    </span>
                   </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="w-full">
-                    <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
-                    <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
-                  <span className="text-gray-900 dark:text-gray-50">Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+                </div>
+
+                <Link 
+                  href="/settings" 
+                  className="flex items-center px-2 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  onClick={() => setNavigationOpen(false)}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setNavigationOpen(false);
+                  }}
+                  className="flex items-center px-2 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </button>
+              </div>
+            )}
+          </nav>
+        </div>
+
+        <div className="hidden xl:flex items-center gap-6 xl:ml-auto">
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? "🌞" : "🌙"}
+          </button>
+
+          {user && (
+            <div className="relative">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5 dark:text-gray-50" />
+                    {totalUnreadMessages > 0 && (
+                      <div className="absolute -top-2 -right-2 flex items-center justify-center">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-medium text-white">
+                          {totalUnreadMessages}
+                        </span>
+                      </div>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950 z-[999] mt-2">
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {Object.entries(chatNotifications).length > 0 ? (
+                      Object.entries(chatNotifications).map(([orderId, count]) => (
+                        <div
+                          key={orderId}
+                          onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                          className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                            <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                              {count}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Click to view messages
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center py-4 text-gray-500">No new messages</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full dark:bg-gray-800 dark:text-gray-50">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage 
+                    src={getAvatarDetails().image} 
+                    alt="Profile"
+                    className="object-cover"
+                    priority
+                  />
+                  <AvatarFallback>{getAvatarDetails().fallback}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              className="w-56 bg-white dark:bg-gray-950 border border-secondary-gray-100 dark:border-secondary-gray-800 mt-2 z-[999]" 
+              align="end" 
+              forceMount
+              sideOffset={5}
+            >
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none text-gray-900 dark:text-gray-50">
+                    {user.displayName || 'New User'}
+                  </p>
+                  <p className="text-xs text-muted-foreground text-secondary-gray-600 dark:text-secondary-gray-300">
+                    {userProfile?.email || user?.email || ''}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="w-full">
+                  <Settings className="mr-2 h-4 w-4 dark:text-gray-50" />
+                  <span className="text-medium font-primary text-gray-900 dark:text-gray-50">Settings</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4 dark:text-gray-50" />
+                <span className="text-gray-900 dark:text-gray-50">Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <div className="flex items-center gap-6">
               <Link href="/auth/signin">
