@@ -176,19 +176,17 @@ interface OrderDetail {
 interface TutorData {
   tutorid: string;
   tutor_name: string;
-  profile_picture: string;
   bio: string;
   rating: number;
   reviews: string;
-  education: string;
-  orders_completed: number;
   highschool_cpp: number;
   undergraduate_cpp: number;
   masters_cpp: number;
   phd_cpp: number;
   mentor: boolean;
-  subject?: string;
-  totalProjects?: number;
+  profile_picture?: string;
+  education?: string;
+  orders_completed: number;
 }
 
 const getPayments = async (orderId: string, userId: string): Promise<Payment[]> => {
@@ -571,22 +569,24 @@ export const dbService = {
     try {
       const tutorsRef = collection(db, 'tutors');
       const snapshot = await getDocs(tutorsRef);
-      return snapshot.docs.map(doc => ({ 
-        tutorid: doc.id,
-        tutor_name: doc.data().tutor_name || 'Expert',
-        profile_picture: doc.data().profile_picture || '/default-avatar.png',
-        bio: doc.data().bio || '',
-        rating: doc.data().rating || 0,
-        reviews: doc.data().reviews?.toString() || '0',
-        education: doc.data().education || '',
-        orders_completed: doc.data().orders_completed || 0,
-        highschool_cpp: doc.data().highschool_cpp || 0,
-        undergraduate_cpp: doc.data().undergraduate_cpp || 0,
-        masters_cpp: doc.data().masters_cpp || 0,
-        phd_cpp: doc.data().phd_cpp || 0,
-        mentor: doc.data().mentor || false,
-        ...doc.data()
-      }));
+      return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          tutorid: doc.id,
+          tutor_name: data.tutor_name || 'Expert',
+          profile_picture: data.profile_picture || '/default-avatar.png',
+          bio: data.bio || '',
+          rating: data.rating || 0,
+          reviews: data.reviews?.toString() || '0',
+          education: data.education || '',
+          orders_completed: data.orders_completed || 0,
+          highschool_cpp: data.highschool_cpp || 0,
+          undergraduate_cpp: data.undergraduate_cpp || 0,
+          masters_cpp: data.masters_cpp || 0,
+          phd_cpp: data.phd_cpp || 0,
+          mentor: data.mentor || false
+        };
+      });
     } catch (error) {
       console.error('Error fetching tutors:', error);
       throw error;
