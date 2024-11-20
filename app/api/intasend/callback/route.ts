@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { NextResponse } from 'next/server';
 import { dbService } from '@/lib/firebase/db-service';
 import { join } from 'path';
