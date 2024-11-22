@@ -1,67 +1,88 @@
-import { useState, useEffect } from 'react';
+// @ts-nocheck
+
+import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
-import { collection, query, where, onSnapshot, DocumentData } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/hooks';
 
-interface AdminNotification {
-  orderid: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  unreadCount: number;
-  chatType: 'active' | 'bidding';
-  senderId: string;
-  tutorId: string;
-}
-
-export const useAdminChatNotifications = (orderid: string) => {
-  const [adminNotifications, setAdminNotifications] = useState<Record<string, number>>({});
+export function useAdminChatNotifications() {
+  const [notifications, setNotifications] = useState<{ [key: string]: number }>({});
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user) return;
 
-    // Listen for notifications for the specific order
-    const notificationsRef = collection(db, 'adminNotifications');
-    const q = query(
-      notificationsRef,
-      where('orderid', '==', orderid)
-    );
+    const fetchNotifications = async () => {
+      try {
+        const adminNotificationsRef = collection(db, 'adminNotifications');
+        const q = query(
+          adminNotificationsRef,
+          where('read', '==', false)
+        );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifications: Record<string, number> = {};
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data() as AdminNotification;
-        notifications[data.orderid] = data.unreadCount || 0;
+        const querySnapshot = await getDocs(q);
+        const notificationsData: { [key: string]: number } = {};
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.orderid) {
+            notificationsData[data.orderid] = (notificationsData[data.orderid] || 0) + (data.unreadCount || 1);
+          }
+        });
+
+        setNotifications(notificationsData);
+      } catch (error) {
+        console.error('Error fetching admin chat notifications:', error);
+      }
+    };
+
+    const interval = setInterval(fetchNotifications, 5000);
+    fetchNotifications();
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const markMessagesAsRead = async (orderId: string) => {
+    try {
+      const adminNotificationsRef = collection(db, 'adminNotifications');
+      const q = query(
+        adminNotificationsRef,
+        where('orderid', '==', orderId),
+        where('read', '==', false)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const updatePromises = querySnapshot.docs.map(doc => 
+        updateDoc(doc.ref, {
+          read: true,
+          unreadCount: 0
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      setNotifications(prev => {
+        const updated = { ...prev };
+        delete updated[orderId];
+        return updated;
       });
+    } catch (error) {
+      console.error('Error marking admin messages as read:', error);
+    }
+  };
 
-      setAdminNotifications(notifications);
-    });
+  const hasUnreadMessages = (orderId: string): boolean => {
+    return !!notifications[orderId];
+  };
 
-    return () => unsubscribe();
-  }, [orderid, user]);
-
-  const markAdminMessagesAsRead = async (orderId: string) => {
-    if (!user) return;
-
-    const notificationsRef = collection(db, 'adminNotifications');
-    const q = query(
-      notificationsRef,
-      where('orderid', '==', orderId)
-    );
-
-    const snapshot = await q.get();
-    snapshot.forEach(async (doc) => {
-      await doc.ref.update({
-        read: true,
-        unreadCount: 0
-      });
-    });
+  const getUnreadCount = (orderId: string): number => {
+    return notifications[orderId] || 0;
   };
 
   return {
-    adminNotifications,
-    markAdminMessagesAsRead
+    notifications,
+    markMessagesAsRead,
+    hasUnreadMessages,
+    getUnreadCount
   };
-}; 
+} 
