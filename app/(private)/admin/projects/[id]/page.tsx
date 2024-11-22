@@ -25,6 +25,8 @@ import { PaymentsHistoryCard } from "./components/PaymentsHistoryCard";
 import { TimelineCard } from "./components/TimelineCard";
 import { DescriptionCard } from "./components/DescriptionCard";
 import { PaymentReceipt } from "./components/PaymentReceipt";
+import { BidChat } from "@/components/admin/adminChat/bid";
+import { ActiveChat } from "@/components/admin/adminChat/active";
 
 // Types
 interface OrderDetail {
@@ -184,10 +186,11 @@ export default function AdminOrderDetailPage() {
       <TimelineCard createdAt={order.createdAt} updatedAt={order.updatedAt} />
 
       {showChat && (
-        <AdminChat
-          orderId={order.id}
-          onClose={() => setShowChat(false)}
-        />
+        order.tutorid ? (
+          <ActiveChat onClose={() => setShowChat(false)} />
+        ) : (
+          <BidChat onClose={() => setShowChat(false)} />
+        )
       )}
 
       <div className="fixed bottom-6 right-6">
