@@ -4,7 +4,7 @@ export async function GET(request, { params }) {
   try {
     const { id } = params;
 
-    const response = await fetch(`https://sandbox.intasend.com/api/v1/payment/status/${id}/`, {
+    const response = await fetch(`https://payment.intasend.com/api/v1/payment/status/${id}/`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${process.env.INTASEND_PUBLIC_KEY}`,

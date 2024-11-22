@@ -56,7 +56,7 @@ const PaystackButton: React.FC<PaystackButtonProps> = ({
       
       const config = {
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!,
-        email: "briannderitu50@gmail.com",
+        email: "support@aplusassists.com",
         amount: amountInKES,
         currency: "KES",
         ref: `pay_${Math.floor(Math.random() * 1000000000 + 1)}`, // Generate unique reference

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     console.log('Sending payload to IntaSend:', payload);
 
-    const response = await fetch('https://sandbox.intasend.com/api/v1/checkout/', {
+    const response = await fetch('https://payment.intasend.com/api/v1/checkout/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
