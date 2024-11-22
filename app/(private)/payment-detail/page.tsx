@@ -125,7 +125,7 @@ export default function PaymentDetailPage() {
   const [totalPrice, setTotalPrice] = useState(0);
   const [discountedPrice, setDiscountedPrice] = useState(0);
   const [selectedPaymentOption, setSelectedPaymentOption] = useState<'full' | 'partial'>('full');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'intasend'>('paystack');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'intasend'>('intasend');
   
   // Get data from URL params
   const orderData = {
@@ -511,33 +511,6 @@ export default function PaymentDetailPage() {
               <div className="space-y-4">
                 <div 
                   className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 ${
-                    selectedPaymentMethod === 'paystack' ? 'border-primary' : ''
-                  }`}
-                  onClick={() => setSelectedPaymentMethod('paystack')}
-                >
-                  <Image 
-                    src="/images/paystack.png" 
-                    alt="Paystack" 
-                    width={100} 
-                    height={40}
-                    style={{ height: 'auto' }}
-                    className="object-contain"
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium">Pay with Paystack</p>
-                    <p className="text-sm text-muted-foreground">Fast and secure payment</p>
-                  </div>
-                  <input 
-                    type="radio" 
-                    name="payment-method" 
-                    checked={selectedPaymentMethod === 'paystack'}
-                    onChange={() => setSelectedPaymentMethod('paystack')}
-                    className="h-5 w-5 accent-primary" 
-                  />
-                </div>
-
-                <div 
-                  className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 ${
                     selectedPaymentMethod === 'intasend' ? 'border-primary' : ''
                   }`}
                   onClick={() => setSelectedPaymentMethod('intasend')}
@@ -559,6 +532,33 @@ export default function PaymentDetailPage() {
                     name="payment-method" 
                     checked={selectedPaymentMethod === 'intasend'}
                     onChange={() => setSelectedPaymentMethod('intasend')}
+                    className="h-5 w-5 accent-primary" 
+                  />
+                </div>
+
+                <div 
+                  className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 ${
+                    selectedPaymentMethod === 'paystack' ? 'border-primary' : ''
+                  }`}
+                  onClick={() => setSelectedPaymentMethod('paystack')}
+                >
+                  <Image 
+                    src="/images/paystack.png" 
+                    alt="Paystack" 
+                    width={100} 
+                    height={40}
+                    style={{ height: 'auto' }}
+                    className="object-contain"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">Pay with Paystack</p>
+                    <p className="text-sm text-muted-foreground">Fast and secure payment</p>
+                  </div>
+                  <input 
+                    type="radio" 
+                    name="payment-method" 
+                    checked={selectedPaymentMethod === 'paystack'}
+                    onChange={() => setSelectedPaymentMethod('paystack')}
                     className="h-5 w-5 accent-primary" 
                   />
                 </div>
@@ -681,20 +681,20 @@ export default function PaymentDetailPage() {
 
               {/* Payment Button */}
               <div className="text-white">
-                {selectedPaymentMethod === 'paystack' ? (
-                  <PaystackButton
-                    amount={calculatePaymentAmount()}
-                    onSuccess={handlePaymentSuccess}
-                    onClose={handlePaymentClose}
-                    disabled={loading || !orderDetails}
-                  />
-                ) : (
+                {selectedPaymentMethod === 'intasend' ? (
                   <IntaSendButton
                     amount={calculatePaymentAmount()}
                     onSuccess={handlePaymentSuccess}
                     onClose={handlePaymentClose}
                     disabled={loading || !orderDetails}
                     orderId={orderData.orderId!}
+                  />
+                ) : (
+                  <PaystackButton
+                    amount={calculatePaymentAmount()}
+                    onSuccess={handlePaymentSuccess}
+                    onClose={handlePaymentClose}
+                    disabled={loading || !orderDetails}
                   />
                 )}
               </div>
