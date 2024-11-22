@@ -87,20 +87,18 @@ export function DocumentsCard({ documents, orderId, onUpdate }: DocumentsCardPro
 
         const updatedDocuments = {
           documents: {
-            documents: {
-              client: existingDocuments.client || [],
-              tutor: [
-                ...existingDocuments.tutor || [],
-                newDocumentEntry
-              ]
-            }
+            client: existingDocuments.client || [],
+            tutor: [
+              ...existingDocuments.tutor || [],
+              newDocumentEntry
+            ]
           }
         };
 
-        await dbService.updateOrder(orderId, updatedDocuments);
+        await dbService.updateOrder(orderId, { documents: updatedDocuments });
         
         if (onUpdate) {
-          onUpdate(updatedDocuments);
+          onUpdate({ documents: updatedDocuments });
         }
 
         setIsOpen(false);
