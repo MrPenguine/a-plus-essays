@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/firebase/hooks";
 import { toast } from "react-hot-toast";
 import { dbService } from "@/lib/firebase/db-service";
 import { useChatNotifications } from '@/hooks/useChatNotifications';
+import { useAdminChatNotifications } from '@/hooks/useAdminChatNotifications';
 
 interface OrderChatProps {
   orderid: string;
@@ -202,20 +203,26 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
     };
   }, [selectedOrder?.id, orderid, selectedOrder?.tutorid, tutorid, chatType]);
 
-  // Update handleOrderSelect to properly switch chats
+  // Add this near the top of the component with other state declarations
+  const { adminNotifications, markAdminMessagesAsRead } = useAdminChatNotifications(orderid);
+
+  // Update the handleOrderSelect function to mark admin messages as read
   const handleOrderSelect = async (order: ChatOrder) => {
     setMessages([]); // Clear current messages
     setSelectedOrder(order);
     setShowChatList(false);
     
     try {
-      await markMessagesAsRead(order.id);
+      await Promise.all([
+        markMessagesAsRead(order.id),
+        markAdminMessagesAsRead(order.id)
+      ]);
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
   };
 
-  // Update handleSendMessage for bidding chats
+  // Modify handleSendMessage to include admin notifications
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
     
@@ -312,6 +319,38 @@ export default function OrderChat({ orderid, onClose, tutorid, tutorname, profil
             unreadCount: increment(1)
           });
         }
+      }
+
+      // Add admin notification
+      const adminNotificationsRef = collection(db, 'adminNotifications');
+      const adminNotificationQuery = query(
+        adminNotificationsRef,
+        where('orderid', '==', currentOrderId)
+      );
+      
+      const adminNotificationSnapshot = await getDocs(adminNotificationQuery);
+      
+      if (adminNotificationSnapshot.empty) {
+        // Create new admin notification
+        await addDoc(adminNotificationsRef, {
+          orderid: currentOrderId,
+          message: `New message in Order #${currentOrderId.slice(0, 8)}`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          unreadCount: 1,
+          chatType: chatType,
+          senderId: user.uid,
+          tutorId: currentTutorId
+        });
+      } else {
+        // Update existing admin notification
+        const notificationDoc = adminNotificationSnapshot.docs[0];
+        await updateDoc(notificationDoc.ref, {
+          timestamp: new Date().toISOString(),
+          message: `New message in Order #${currentOrderId.slice(0, 8)}`,
+          read: false,
+          unreadCount: increment(1)
+        });
       }
     } catch (error) {
       console.error('Error sending message:', error);

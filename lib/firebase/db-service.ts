@@ -399,6 +399,26 @@ export const dbService = {
       throw error;
     }
   },
+  async getAllOrders(limit?: number, status?: string) {
+    try {
+      const ordersRef = collection(db, 'orders');
+      let q = query(ordersRef, orderBy('createdAt', 'desc'));
+      if (status) {
+        q = query(q, where('status', '==', status));
+      }
+      if (limit) {
+        q = query(q, limitQuery(limit));
+      }
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error fetching all orders:', error);
+      throw error;
+    }
+  },
 
   async getReferralStats(userId: string): Promise<ReferralStats> {
     try {
