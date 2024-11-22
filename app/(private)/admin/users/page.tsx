@@ -1,14 +1,19 @@
+"use client"
+
 import { AdminPageLayout } from "@/components/admin/admin-page-layout"
+import { UsersTable } from "@/components/admin/users-table"
 
 export default function AllUsersPage() {
   return (
     <AdminPageLayout section="Users" page="All Users">
-      <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-        <div className="aspect-video rounded-xl bg-muted/50" />
-        <div className="aspect-video rounded-xl bg-muted/50" />
-        <div className="aspect-video rounded-xl bg-muted/50" />
+      <div className="flex-1 space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold tracking-tight">All Users</h2>
+        </div>
+        <div className="flex-1">
+          <UsersTable />
+        </div>
       </div>
-      <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min" />
     </AdminPageLayout>
   )
 } 

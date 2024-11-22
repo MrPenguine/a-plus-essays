@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useBidNotifications } from '@/hooks/useBidNotifications';
 import { useEffect, useState } from 'react';
 import { db } from "@/lib/firebase/config";
-import { collection, query, onSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot, getDocs, where } from "firebase/firestore";
 
 import {
   Sidebar,
@@ -74,18 +74,6 @@ const data = {
           title: "All Payments",
           url: "/admin/payments/all",
         },
-        {
-          title: "Pending",
-          url: "/admin/payments/pending",
-        },
-        {
-          title: "Completed",
-          url: "/admin/payments/completed",
-        },
-        {
-          title: "Failed",
-          url: "/admin/payments/failed",
-        },
       ],
     },
     {
@@ -112,6 +100,21 @@ const NotificationBadge = ({ count }: { count: number }) => (
   </span>
 );
 
+// Add CountBadge component
+const CountBadge = ({ count }: { count: number }) => (
+  <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-xs font-medium">
+    {count}
+  </span>
+);
+
+interface ProjectCounts {
+  all: number;
+  pending: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+}
+
 interface AppSidebarProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -122,6 +125,13 @@ export function AppSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const bidNotifications = useBidNotifications();
   const [activeChatNotifications, setActiveChatNotifications] = useState<number>(0);
+  const [projectCounts, setProjectCounts] = useState<ProjectCounts>({
+    all: 0,
+    pending: 0,
+    in_progress: 0,
+    completed: 0,
+    cancelled: 0
+  });
 
   // Listen to active chat notifications
   useEffect(() => {
@@ -141,6 +151,52 @@ export function AppSidebar({ className }: { className?: string }) {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Fetch project counts
+  useEffect(() => {
+    const fetchProjectCounts = async () => {
+      try {
+        const ordersRef = collection(db, 'orders');
+        
+        // Get total count
+        const allSnapshot = await getDocs(ordersRef);
+        const total = allSnapshot.size;
+
+        // Get counts by status
+        const pendingQuery = query(ordersRef, where('status', '==', 'pending'));
+        const completedQuery = query(ordersRef, where('status', '==', 'completed'));
+        const cancelledQuery = query(ordersRef, where('status', '==', 'cancelled'));
+        
+        // Special query for in_progress that includes partial status
+        const inProgressQuery = query(ordersRef, 
+          where('status', 'in', ['in_progress', 'partial'])
+        );
+
+        const [pendingSnapshot, completedSnapshot, cancelledSnapshot, inProgressSnapshot] = 
+          await Promise.all([
+            getDocs(pendingQuery),
+            getDocs(completedQuery),
+            getDocs(cancelledQuery),
+            getDocs(inProgressQuery)
+          ]);
+
+        // Count in_progress orders including those with partial status
+        let inProgressCount = inProgressSnapshot.size; // No need to filter, the query handles it
+
+        setProjectCounts({
+          all: total,
+          pending: pendingSnapshot.size,
+          in_progress: inProgressCount,
+          completed: completedSnapshot.size,
+          cancelled: cancelledSnapshot.size
+        });
+      } catch (error) {
+        console.error('Error fetching project counts:', error);
+      }
+    };
+
+    fetchProjectCounts();
   }, []);
 
   // Calculate total unread bid messages
@@ -193,11 +249,20 @@ export function AppSidebar({ className }: { className?: string }) {
                         >
                           <Link href={subItem.url} className="flex items-center w-full">
                             <span>{subItem.title}</span>
-                            {/* Show notification count for Bid Chats */}
+                            {/* Project counts */}
+                            {item.title === "Projects" && (
+                              <CountBadge count={
+                                subItem.title === "All Projects" ? projectCounts.all :
+                                subItem.title === "Pending" ? projectCounts.pending :
+                                subItem.title === "In Progress" ? projectCounts.in_progress :
+                                subItem.title === "Completed" ? projectCounts.completed :
+                                subItem.title === "Cancelled" ? projectCounts.cancelled : 0
+                              } />
+                            )}
+                            {/* Chat notifications */}
                             {subItem.title === "Bid Chats" && totalUnreadBidMessages > 0 && (
                               <NotificationBadge count={totalUnreadBidMessages} />
                             )}
-                            {/* Show notification count for Active Chats */}
                             {subItem.title === "Active Chats" && activeChatNotifications > 0 && (
                               <NotificationBadge count={activeChatNotifications} />
                             )}

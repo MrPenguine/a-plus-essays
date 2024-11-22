@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase/admin';
 import { dbService } from '@/lib/firebase/db-service';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, startAfter, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
 export async function GET(request: Request) {
@@ -23,45 +23,50 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
       }
 
-      // Get query parameters
+      // Get query parameters for pagination
       const { searchParams } = new URL(request.url);
-      const userId = searchParams.get('userId');
+      const page = parseInt(searchParams.get('page') || '1');
+      const pageSize = 10;
 
-      // Fetch orders
-      const ordersRef = collection(db, 'orders');
-      let q;
+      // Calculate the starting point
+      const startAt = (page - 1) * pageSize;
 
-      if (userId) {
-        // If userId is provided, only fetch orders for that user
-        q = query(
-          ordersRef,
-          where('userid', '==', userId),
-          orderBy('createdAt', 'desc')
-        );
-      } else {
-        // Otherwise fetch all orders
-        q = query(
-          ordersRef,
-          orderBy('createdAt', 'desc')
-        );
-      }
+      // Fetch payments
+      const paymentsRef = collection(db, 'payments');
+      const q = query(
+        paymentsRef,
+        orderBy('createdAt', 'desc'),
+        limit(pageSize)
+      );
 
       const snapshot = await getDocs(q);
-      const orders = snapshot.docs.map(doc => ({
+      const payments = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
-      return NextResponse.json({ orders });
+      // Get total count for pagination
+      const totalSnapshot = await getDocs(collection(db, 'payments'));
+      const total = totalSnapshot.size;
+
+      return NextResponse.json({
+        payments,
+        pagination: {
+          total,
+          pages: Math.ceil(total / pageSize),
+          currentPage: page
+        }
+      });
+
     } catch (error) {
       console.error('Token verification failed:', error);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   } catch (error) {
-    console.error('Error in fetch-orders API:', error);
+    console.error('Error in fetch-payments API:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
   }
-}
+} 

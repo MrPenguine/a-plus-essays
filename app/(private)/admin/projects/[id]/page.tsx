@@ -106,40 +106,40 @@ export default function AdminOrderDetailPage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const fetchOrderDetails = async () => {
-      if (!params.id || !user) return;
+  const fetchOrderDetails = async () => {
+    if (!params.id || !user) return;
 
-      try {
-        const token = await user.getIdToken(true);
-        const response = await fetch(`/api/admin/fetch-order-details?orderId=${params.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          cache: 'no-store'
-        });
+    try {
+      const token = await user.getIdToken(true);
+      const response = await fetch(`/api/admin/fetch-order-details?orderId=${params.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-store'
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch order details');
-        }
-
-        const data = await response.json();
-        setOrder(data.order);
-        setPayments(data.payments);
-        if (data.tutor) {
-          setTutorName(data.tutor.tutor_name);
-        }
-        setTotalPages(Math.ceil(data.payments.length / 10));
-      } catch (error) {
-        console.error("Error fetching order details:", error);
-        setError("Failed to load order details");
-        toast.error("Failed to load order details");
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error('Failed to fetch order details');
       }
-    };
 
+      const data = await response.json();
+      setOrder(data.order);
+      setPayments(data.payments);
+      if (data.tutor) {
+        setTutorName(data.tutor.tutor_name);
+      }
+      setTotalPages(Math.ceil(data.payments.length / 10));
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      setError("Failed to load order details");
+      toast.error("Failed to load order details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (mounted && user) {
       fetchOrderDetails();
     }
@@ -152,6 +152,10 @@ export default function AdminOrderDetailPage() {
   const hasUnreadMessages = (orderId: string) => {
     return chatNotifications[orderId] > 0;
   };
+
+  const handleUpdate = useCallback(async () => {
+    await fetchOrderDetails(); // Re-fetch all order details
+  }, [fetchOrderDetails]);
 
   if (!mounted || loading) return <Loading />;
   if (error) return <div className="pt-[80px] px-4"><p className="text-red-500">{error}</p></div>;
@@ -169,9 +173,13 @@ export default function AdminOrderDetailPage() {
 
       <BasicInfoCard {...order} />
       <UserInfoCard userid={order.userid} tutorid={order.tutorid} tutorName={tutorName} />
-      <AssignmentDetailsCard {...order} />
-      <PaymentDetailsCard {...order} />
-      <DescriptionCard description={order.description} />
+      <AssignmentDetailsCard {...order} onUpdate={handleUpdate} />
+      <PaymentDetailsCard {...order} onUpdate={handleUpdate} />
+      <DescriptionCard 
+        id={order.id} 
+        description={order.description} 
+        onUpdate={handleUpdate} 
+      />
       <DocumentsCard 
         documents={order.documents} 
         orderId={order.id} 

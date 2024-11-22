@@ -69,7 +69,13 @@ function OrderSkeleton() {
   );
 }
 
-export function OrdersTable() {
+interface OrdersTableProps {
+  filter?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  includePartial?: boolean;
+  userId?: string;
+}
+
+export function OrdersTable({ filter, includePartial, userId }: OrdersTableProps) {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -80,35 +86,50 @@ export function OrdersTable() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user) return
+      if (!user) return;
 
       try {
-        const token = await user.getIdToken()
-        const response = await fetch('/api/admin/fetch-orders', {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/admin/fetch-orders${userId ? `?userId=${userId}` : ''}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
-        })
+        });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch orders')
+          throw new Error('Failed to fetch orders');
         }
 
-        const data = await response.json()
-        // Sort orders by createdAt date (newest first)
-        const sortedOrders = data.orders.sort((a: Order, b: Order) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        })
-        setOrders(sortedOrders)
-      } catch (error) {
-        console.error('Error fetching orders:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+        const data = await response.json();
+        
+        // Filter orders based on props
+        let filteredOrders = data.orders;
+        
+        if (filter) {
+          filteredOrders = data.orders.filter((order: Order) => {
+            if (filter === 'in_progress') {
+              // Include orders with in_progress or partial status
+              return order.status === 'in_progress' || order.status === 'partial';
+            }
+            return order.status === filter;
+          });
+        }
 
-    fetchOrders()
-  }, [user])
+        // Sort orders by createdAt date (newest first)
+        const sortedOrders = filteredOrders.sort((a: Order, b: Order) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        setOrders(sortedOrders);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [user, filter, includePartial, userId]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -128,6 +149,16 @@ export function OrdersTable() {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "All" || order.status === selectedStatus.toLowerCase();
+    
+    // If we have a filter prop, only show matching status
+    if (filter) {
+      if (filter === 'in_progress') {
+        return matchesSearch && 
+          (order.status === 'in_progress' || order.status === 'partial');
+      }
+      return matchesSearch && order.status === filter;
+    }
+    
     return matchesSearch && matchesStatus;
   });
 
