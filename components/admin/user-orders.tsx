@@ -119,16 +119,16 @@ export function UserOrders({ userId, totalOrders }: UserOrdersProps) {
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Deadline</TableHead>
-              <TableHead>Created At</TableHead>
+              <TableHead className="whitespace-nowrap">Order ID</TableHead>
+              <TableHead className="whitespace-nowrap">Title</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              <TableHead className="whitespace-nowrap">Price</TableHead>
+              <TableHead className="whitespace-nowrap">Deadline</TableHead>
+              <TableHead className="whitespace-nowrap">Created At</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,16 +138,16 @@ export function UserOrders({ userId, totalOrders }: UserOrdersProps) {
                 className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                 onClick={() => router.push(`/admin/projects/${order.id}`)}
               >
-                <TableCell className="font-mono">{order.id.slice(0, 8)}...</TableCell>
-                <TableCell>{order.title}</TableCell>
-                <TableCell>
+                <TableCell className="font-mono whitespace-nowrap">{order.id.slice(0, 8)}...</TableCell>
+                <TableCell className="max-w-[200px] truncate">{order.title}</TableCell>
+                <TableCell className="whitespace-nowrap">
                   <Badge className={getStatusColor(order.status)}>
                     {order.status}
                   </Badge>
                 </TableCell>
-                <TableCell>${order.price}</TableCell>
-                <TableCell>{format(new Date(order.deadline), 'MMM dd, yyyy')}</TableCell>
-                <TableCell>{format(new Date(order.createdAt), 'MMM dd, yyyy HH:mm')}</TableCell>
+                <TableCell className="whitespace-nowrap">${order.price}</TableCell>
+                <TableCell className="whitespace-nowrap">{format(new Date(order.deadline), 'MMM dd, yyyy')}</TableCell>
+                <TableCell className="whitespace-nowrap">{format(new Date(order.createdAt), 'MMM dd, yyyy HH:mm')}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -155,4 +155,4 @@ export function UserOrders({ userId, totalOrders }: UserOrdersProps) {
       </div>
     </div>
   )
-} 
+}

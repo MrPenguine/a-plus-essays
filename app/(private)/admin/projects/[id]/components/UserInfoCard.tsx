@@ -12,7 +12,6 @@ interface UserInfoCardProps {
 
 export function UserInfoCard({ userid, tutorid, tutorName }: UserInfoCardProps) {
   const [userEmail, setUserEmail] = useState<string>('Loading...');
-  const [tutorEmail, setTutorEmail] = useState<string>('Loading...');
 
   useEffect(() => {
     const fetchUserEmail = async () => {
@@ -47,60 +46,33 @@ export function UserInfoCard({ userid, tutorid, tutorName }: UserInfoCardProps) 
       }
     };
 
-    const fetchTutorEmail = async () => {
-      if (!tutorid) {
-        setTutorEmail('Not assigned');
-        return;
-      }
-
-      try {
-        const tutorsRef = collection(db, 'tutors');
-        const q = query(tutorsRef, where('tutorid', '==', tutorid));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          const tutorDoc = querySnapshot.docs[0];
-          const tutorData = tutorDoc.data();
-          setTutorEmail(tutorData.email || 'No email found');
-        } else {
-          setTutorEmail('No email found');
-        }
-      } catch (error) {
-        console.error('Error fetching tutor email:', error);
-        setTutorEmail('Error loading email');
-      }
-    };
-
     fetchUserEmail();
-    if (tutorid) {
-      fetchTutorEmail();
-    }
-  }, [userid, tutorid]);
+  }, [userid]);
 
   return (
-    <Card className="p-6 mb-6">
+    <Card className="p-4 md:p-6 mb-4 md:mb-6">
       <h2 className="text-lg font-semibold mb-4">User Information</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">User ID</p>
-          <p className="font-medium">{userid}</p>
-          <p className="text-sm text-muted-foreground mt-1">Email</p>
-          <p className="font-medium">{userEmail}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Tutor ID</p>
-          <p className="font-medium">{tutorid || 'Not assigned'}</p>
-          {tutorid && (
-            <>
-              <p className="text-sm text-muted-foreground mt-1">Tutor Email</p>
-              <p className="font-medium">{tutorEmail}</p>
-            </>
-          )}
-        </div>
-        {tutorName && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
           <div>
-            <p className="text-sm text-muted-foreground">Tutor Name</p>
-            <p className="font-medium">{tutorName}</p>
+            <p className="text-sm text-muted-foreground">User ID</p>
+            <p className="font-medium break-all">{userid}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Email</p>
+            <p className="font-medium break-all">{userEmail}</p>
+          </div>
+        </div>
+        {tutorid && (
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm text-muted-foreground">Tutor ID</p>
+              <p className="font-medium break-all">{tutorid}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Tutor Name</p>
+              <p className="font-medium">{tutorName || 'Not available'}</p>
+            </div>
           </div>
         )}
       </div>

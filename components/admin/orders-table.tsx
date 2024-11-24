@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Search, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { parseAndValidateDate } from "@/lib/utils"
+import { parseAndFormatDate, getTimeRemaining } from '@/lib/utils/date-utils';
 
 interface Order {
   id: string
@@ -48,20 +49,20 @@ function OrderSkeleton() {
   return (
     <div className="space-y-6">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="p-6 border rounded-lg">
-          <div className="flex justify-between items-start mb-2">
+        <div key={i} className="p-4 border rounded-lg">
+          <div className="flex flex-col gap-2">
             <div className="space-y-2">
-              <Skeleton className="h-6 w-[250px]" />
-              <Skeleton className="h-4 w-[200px]" />
+              <Skeleton className="h-6 w-full max-w-[250px]" />
+              <Skeleton className="h-4 w-full max-w-[200px]" />
             </div>
-            <div className="text-right">
-              <Skeleton className="h-6 w-[80px] ml-auto" />
+            <div>
+              <Skeleton className="h-6 w-[80px]" />
               <Skeleton className="h-4 w-[120px] mt-2" />
             </div>
           </div>
-          <div className="flex justify-between items-center mt-4">
+          <div className="flex flex-col gap-2 mt-4">
             <Skeleton className="h-4 w-[150px]" />
-            <Skeleton className="h-9 w-[100px]" />
+            <Skeleton className="h-9 w-full max-w-[100px]" />
           </div>
         </div>
       ))}
@@ -170,24 +171,24 @@ export function OrdersTable({ filter, includePartial, userId }: OrdersTableProps
   }
 
   return (
-    <div>
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+    <div className="w-full max-w-full">
+      <div className="relative mb-6 px-2 sm:px-0">
+        <Search className="absolute left-5 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
         <Input
-          className="pl-10"
-          placeholder="Search by project name, description..."
+          className="pl-10 w-full"
+          placeholder="Search by project name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 border-b border-secondary-gray-200 dark:border-secondary-gray-700/50 mb-6">
+      <div className="flex flex-nowrap overflow-x-auto pb-2 border-b border-secondary-gray-200 dark:border-secondary-gray-700/50 mb-6 gap-2 px-2 sm:px-0">
         {["All", "Pending", "in_progress", "Completed", "Cancelled"].map((status) => (
           <Button
             key={status}
             variant={selectedStatus === status ? "default" : "outline"}
             onClick={() => setSelectedStatus(status)}
-            className={`whitespace-nowrap ${
+            className={`flex-shrink-0 text-sm ${
               selectedStatus === status 
                 ? 'bg-primary text-white'
                 : 'text-black dark:text-white'
@@ -198,42 +199,50 @@ export function OrdersTable({ filter, includePartial, userId }: OrdersTableProps
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 px-2 sm:px-0">
         {displayedOrders.map((order) => (
           <div 
             key={order.id}
-            className="p-4 sm:p-6 border dark:border-secondary-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-secondary-gray-800/70 cursor-pointer bg-gray-50 dark:bg-secondary-gray-800/30 backdrop-blur-sm"
+            className="p-4 border dark:border-secondary-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-secondary-gray-800/70 cursor-pointer bg-gray-50 dark:bg-secondary-gray-800/30 backdrop-blur-sm"
             onClick={() => router.push(`/admin/projects/${order.id}`)}
           >
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-2">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-lg text-primary-600 dark:text-white hover:text-primary-600">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-start gap-2">
+                  <h3 className="font-semibold text-base sm:text-lg text-primary-600 dark:text-white hover:text-primary-600 break-all max-w-full">
                     {truncateText(order.title, 20)}
                   </h3>
                   <Badge 
                     variant="outline" 
-                    className={getStatusColor(order.status)}
+                    className={`${getStatusColor(order.status)} whitespace-nowrap text-xs sm:text-sm`}
                   >
                     {order.status}
                   </Badge>
                 </div>
-                <div className="flex flex-wrap gap-2 text-sm text-secondary-gray-500">
-                  <span>{order.assignment_type}</span>
+                <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-secondary-gray-500">
+                  <span className="break-all">{order.assignment_type}</span>
                   <span>•</span>
-                  <span>{order.subject}</span>
+                  <span className="break-all">{order.subject}</span>
                 </div>
               </div>
-              <div className="text-left sm:text-right w-full sm:w-auto">
-                <div className="font-semibold text-primary dark:text-white">${order.price}</div>
-                <div className="text-sm text-secondary-gray-500">ID: {order.id}</div>
+              
+              <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
+                <div className="flex flex-col text-xs sm:text-sm text-secondary-gray-300">
+                  <span className="break-words">Deadline: {parseAndFormatDate(order.deadline)}</span>
+                  <span className="text-primary-600 dark:text-primary-400 mt-1 break-words">
+                    {getTimeRemaining(order.deadline)}
+                  </span>
+                </div>
+                <div className="flex flex-row sm:flex-col justify-between sm:items-end gap-1">
+                  <div className="font-semibold text-primary dark:text-white">${order.price}</div>
+                  <div className="text-xs text-secondary-gray-500">ID: {order.id.slice(0, 8)}</div>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div className="text-sm text-secondary-gray-300">
-                Deadline: {formatDate(order.deadline)}
-              </div>
-              <Button variant="secondary" className="w-full sm:w-auto bg-primary text-white hover:bg-primary-600">
+
+              <Button 
+                variant="secondary" 
+                className="w-full bg-primary text-white hover:bg-primary-600 text-sm sm:text-base py-2"
+              >
                 View Order
               </Button>
             </div>
@@ -242,11 +251,11 @@ export function OrdersTable({ filter, includePartial, userId }: OrdersTableProps
       </div>
 
       {hasMore && (
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center px-2 sm:px-0">
           <Button
             variant="outline"
             onClick={() => setDisplayCount(prev => prev + 5)}
-            className="gap-2 border-primary-200 rounded-full text-primary dark:text-white"
+            className="gap-2 border-primary-200 rounded-full text-primary dark:text-white w-full sm:w-auto text-sm"
           >
             <ChevronDown className="h-4 w-4" />
             VIEW MORE
@@ -255,4 +264,4 @@ export function OrdersTable({ filter, includePartial, userId }: OrdersTableProps
       )}
     </div>
   )
-} 
+}

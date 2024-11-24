@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { FaChevronDown } from "react-icons/fa";
+import { parseAndFormatDate, getTimeRemaining } from '@/lib/utils/date-utils';
 
 interface Order {
   id: string;
@@ -236,10 +237,13 @@ export function OrdersList() {
                 <div className="text-sm text-secondary-gray-500">ID: {order.id}</div>
               </div>
             </div>
+            <div className="flex flex-col text-sm text-secondary-gray-300">
+              <span>Deadline: {parseAndFormatDate(order.deadline)}</span>
+              <span className="text-primary-600 dark:text-primary-400 mt-1">
+                {getTimeRemaining(order.deadline)}
+              </span>
+            </div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div className="text-sm text-secondary-gray-300">
-                Deadline: {new Date(order.deadline).toLocaleDateString()}
-              </div>
               <Button variant="secondary" className="w-full sm:w-auto bg-primary text-white hover:bg-primary-600">View Order</Button>
             </div>
           </div>
