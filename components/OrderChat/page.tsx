@@ -14,10 +14,10 @@ const OrderChat: React.FC<OrderChatProps> = ({
   title
 }) => {
   if (chatType === 'bidding') {
-    return <BiddingOrderChat orderId={orderid} title={title || ''} onClose={onClose} />;
+    return <BiddingOrderChat orderid={orderid} title={title || ''} onClose={onClose} />;
   }
 
-  return <ActiveOrderChat orderId={orderid} onClose={onClose} />;
+  return <ActiveOrderChat orderid={orderid} onClose={onClose} />;
 };
 
 export default OrderChat;

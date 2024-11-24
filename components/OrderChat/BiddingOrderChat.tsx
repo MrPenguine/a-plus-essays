@@ -39,7 +39,7 @@ interface TutorData {
   profile_picture: string;
 }
 
-export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
+export function BiddingOrderChat({ orderid, title, onClose }: OrderChatProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [showTutorList, setShowTutorList] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -79,12 +79,12 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
 
   // Fetch messages for selected tutor
   useEffect(() => {
-    if (!orderId || !selectedTutor) return;
+    if (!orderid || !selectedTutor) return;
 
     const messagesRef = collection(db, 'messages');
     const q = query(
       messagesRef,
-      where('orderid', '==', orderId),
+      where('orderid', '==', orderid),
       where('tutorId', '==', selectedTutor.id)
     );
 
@@ -98,13 +98,13 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
         
         // Mark as read when messages are loaded and chat is open
         if (!showTutorList) {
-          markAsRead(orderId, 'bidding', selectedTutor.id);
+          markAsRead(orderid, 'bidding', selectedTutor.id);
         }
       }
     });
 
     return () => unsubscribe();
-  }, [orderId, selectedTutor, showTutorList]);
+  }, [orderid, selectedTutor, showTutorList]);
 
   const handleTutorSelect = async (tutor: TutorData) => {
     setSelectedTutor(tutor);
@@ -113,11 +113,11 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
     try {
       // Update notifications collection
       const notificationsRef = collection(db, 'notifications');
-      const notificationId = `bidding_${orderId}_${tutor.id}`;
+      const notificationId = `bidding_${orderid}_${tutor.id}`;
       
       const q = query(
         notificationsRef,
-        where('orderid', '==', orderId), // Use the actual order ID
+        where('orderid', '==', orderid), // Use the actual order ID
         where('userid', '==', user?.uid)
       );
       
@@ -135,7 +135,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
       const messagesRef = collection(db, 'messages');
       const messagesQuery = query(
         messagesRef,
-        where('orderid', '==', orderId),
+        where('orderid', '==', orderid),
         where('tutorId', '==', tutor.id)
       );
 
@@ -176,14 +176,14 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
       const messagesRef = collection(db, 'messages');
       const q = query(
         messagesRef,
-        where('orderid', '==', orderId),
+        where('orderid', '==', orderid),
         where('tutorId', '==', selectedTutor.id)
       );
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
         await addDoc(messagesRef, {
-          orderid: orderId,
+          orderid: orderid,
           tutorId: selectedTutor.id,
           messages: [{ ...messageData, pending: false }]
         });
@@ -196,7 +196,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
 
       // Create notification with bidding ID for storage but order ID for display
       const notificationsRef = collection(db, 'notifications');
-      const notificationId = `bidding_${orderId}_${selectedTutor.id}`;
+      const notificationId = `bidding_${orderid}_${selectedTutor.id}`;
       
       const notificationQuery = query(
         notificationsRef,
@@ -208,9 +208,9 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
       if (notificationSnapshot.empty) {
         await addDoc(notificationsRef, {
           orderid: notificationId,  // Store with bidding ID
-          displayOrderId: orderId,  // Add actual order ID for display/linking
+          displayOrderId: orderid,  // Add actual order ID for display/linking
           userid: selectedTutor.id,
-          message: `New message in Order #${orderId.slice(0, 8)}`,  // Show actual order ID
+          message: `New message in Order #${orderid.slice(0, 8)}`,  // Show actual order ID
           timestamp: new Date().toISOString(),
           read: false,
           adminread: false,
@@ -220,13 +220,13 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
           isBidding: true,
           chatType: 'bidding',
           tutorId: selectedTutor.id,
-          linkToOrder: orderId  // Add field for navigation
+          linkToOrder: orderid  // Add field for navigation
         });
       } else {
         const notificationDoc = notificationSnapshot.docs[0];
         await updateDoc(notificationDoc.ref, {
           timestamp: new Date().toISOString(),
-          message: `New message in Order #${orderId.slice(0, 8)}`,  // Show actual order ID
+          message: `New message in Order #${orderid.slice(0, 8)}`,  // Show actual order ID
           read: false,
           adminread: false,
           unreadadmincount: increment(1)
@@ -240,9 +240,9 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
     }
   };
 
-  const getOrderUnreadCount = (orderId: string) => {
+  const getOrderUnreadCount = (orderid: string) => {
     return biddingTutors.reduce((total, tutor) => {
-      const notificationKey = `bidding_${orderId}_${tutor.id}`;
+      const notificationKey = `bidding_${orderid}_${tutor.id}`;
       const notification = adminNotifications[notificationKey];
       return total + ((notification?.adminread === false && notification?.unreadadmincount > 0) ? notification.unreadadmincount : 0);
     }, 0);
@@ -250,7 +250,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
 
   const hasUnreadMessages = () => {
     return biddingTutors.some(tutor => {
-      const notificationKey = `bidding_${orderId}_${tutor.id}`;
+      const notificationKey = `bidding_${orderid}_${tutor.id}`;
       const notification = adminNotifications[notificationKey];
       return notification?.adminread === false && notification?.unreadadmincount > 0;
     });
@@ -258,7 +258,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
 
   // Add this function to get unread count for a specific tutor
   const getTutorUnreadCount = (tutorId: string) => {
-    const notificationKey = `bidding_${orderId}_${tutorId}`;
+    const notificationKey = `bidding_${orderid}_${tutorId}`;
     const notification = adminNotifications[notificationKey];
     return (notification?.adminread === false && notification?.unreadadmincount > 0) 
       ? notification.unreadadmincount 
@@ -279,7 +279,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         // Check if this notification is for our current order
-        if (data.orderid.includes(orderId)) {
+        if (data.orderid.includes(orderid)) {
           // Only count if unread and has unread messages
           if (data.read === false && data.unreadCount > 0) {
             const tutorId = data.tutorId;
@@ -294,7 +294,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
     });
 
     return () => unsubscribe();
-  }, [orderId]);
+  }, [orderid]);
 
   return (
     <div className="fixed inset-0 bg-black/20 z-50 flex items-center justify-center md:items-end md:justify-end p-0 md:p-4">
@@ -310,7 +310,7 @@ export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
           <>
             <div className="p-4 border-b flex items-center justify-between">
               <div className="flex items-center gap-2 relative">
-                <h2 className="font-semibold">Bidding Chat - Order #{orderId.slice(0, 8)}</h2>
+                <h2 className="font-semibold">Bidding Chat - Order #{orderid.slice(0, 8)}</h2>
                 {hasUnreadMessages() && (
                   <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-600" />
                 )}

@@ -14,7 +14,7 @@ import { useUnifiedChatNotifications } from '@/hooks/useUnifiedChatNotifications
 import { useMediaQuery } from '@/hooks/use-media-query';
 
 interface ActiveOrderChatProps {
-  orderId: string;
+  orderid: string;
   onClose: () => void;
 }
 
@@ -34,7 +34,7 @@ interface Message {
   pending?: boolean;
 }
 
-export function ActiveOrderChat({ orderId, onClose }: ActiveOrderChatProps) {
+export function ActiveOrderChat({ orderid, onClose }: ActiveOrderChatProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [showChatList, setShowChatList] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -75,7 +75,7 @@ export function ActiveOrderChat({ orderId, onClose }: ActiveOrderChatProps) {
               status: data.status
             };
             
-            if (doc.id === orderId) {
+            if (doc.id === orderid) {
               orders.unshift({
                 ...order,
                 title: `${order.title} - Current Chat`
@@ -95,10 +95,10 @@ export function ActiveOrderChat({ orderId, onClose }: ActiveOrderChatProps) {
     };
 
     fetchActiveOrders();
-  }, [user, orderId]);
+  }, [user, orderid]);
 
   useEffect(() => {
-    const currentOrderId = selectedOrder?.id || orderId;
+    const currentOrderId = selectedOrder?.id || orderid;
     if (!currentOrderId) return;
 
     const messagesRef = collection(db, 'messages');
@@ -125,7 +125,7 @@ export function ActiveOrderChat({ orderId, onClose }: ActiveOrderChatProps) {
       unsubscribe();
       setMessages([]);
     };
-  }, [selectedOrder?.id, orderId, showChatList]);
+  }, [selectedOrder?.id, orderid, showChatList]);
 
   useEffect(() => {
     if (selectedOrder && !showChatList) {
@@ -148,7 +148,7 @@ export function ActiveOrderChat({ orderId, onClose }: ActiveOrderChatProps) {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user) return;
     
-    const currentOrderId = selectedOrder?.id || orderId;
+    const currentOrderId = selectedOrder?.id || orderid;
     const currentTutorId = selectedOrder?.tutorid;
     if (!currentOrderId || !currentTutorId) return;
 
