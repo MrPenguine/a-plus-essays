@@ -189,6 +189,16 @@ interface TutorData {
   orders_completed: number;
 }
 
+// Add interface for user data
+interface UserDoc {
+  userid: string;
+  email: string;
+  name: string;
+  balance: number;
+  createdAt: string;
+  isAnonymous: boolean;
+}
+
 const getPayments = async (orderId: string, userId: string): Promise<Payment[]> => {
   try {
     const paymentsRef = collection(db, 'payments');
@@ -684,6 +694,25 @@ export const dbService = {
     } catch (error) {
       console.error('Error checking admin status:', error);
       return false;
+    }
+  },
+
+  async getUserById(userId: string): Promise<UserDoc | null> {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        return {
+          userid: userSnap.id,
+          ...userSnap.data()
+        } as UserDoc;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      return null;
     }
   }
 }; 
