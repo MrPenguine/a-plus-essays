@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -14,10 +13,14 @@ import { useUnifiedChatNotifications } from '@/hooks/useUnifiedChatNotifications
 import { dbService } from "@/lib/firebase/db-service";
 import { useMediaQuery } from '@/hooks/use-media-query';
 
-interface BiddingOrderChatProps {
-  orderId: string;
-  title: string;
+export interface OrderChatProps {
+  orderid: string;
   onClose: () => void;
+  tutorid: string;
+  tutorname: string;
+  profile_pic?: string;
+  chatType: "bidding" | "regular";
+  title: string;
 }
 
 interface Message {
@@ -34,7 +37,7 @@ interface TutorData {
   profile_picture: string;
 }
 
-export function BiddingOrderChat({ orderId, title, onClose }: BiddingOrderChatProps) {
+export function BiddingOrderChat({ orderId, title, onClose }: OrderChatProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [showTutorList, setShowTutorList] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);

@@ -2,15 +2,17 @@
 
 import { ActiveOrderChat } from "./ActiveOrderChat";
 import { BiddingOrderChat } from "./BiddingOrderChat";
+import { OrderChatProps } from './BiddingOrderChat';
 
-interface OrderChatProps {
-  orderid: string;
-  onClose: () => void;
-  title?: string;
-  chatType: 'active' | 'bidding';
-}
-
-const OrderChat = ({ orderid, onClose, title, chatType }: OrderChatProps) => {
+const OrderChat: React.FC<OrderChatProps> = ({
+  orderid,
+  onClose,
+  tutorid,
+  tutorname,
+  profile_pic,
+  chatType,
+  title
+}) => {
   if (chatType === 'bidding') {
     return <BiddingOrderChat orderId={orderid} title={title || ''} onClose={onClose} />;
   }
