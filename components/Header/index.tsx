@@ -273,6 +273,13 @@ const Header = () => {
   // Calculate total unread messages
   const totalUnreadMessages = Object.values(chatNotifications).reduce((acc, curr) => acc + curr, 0);
 
+  // Add this helper function to extract order ID
+  const extractOrderId = (orderId: string) => {
+    // Check if the ID contains 'bidding_' or other prefixes
+    const matches = orderId.match(/(?:bidding_)?([^_]+)(?:_.+)?/);
+    return matches ? matches[1] : orderId;
+  };
+
   return (
     <header
       className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 ${
@@ -326,11 +333,11 @@ const Header = () => {
                         Object.entries(chatNotifications).map(([orderId, count]) => (
                           <div
                             key={orderId}
-                            onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                            onClick={() => router.push(`/orders/${extractOrderId(orderId)}?openChat=true`)}
                             className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
                           >
                             <div className="flex items-center justify-between">
-                              <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                              <p className="font-medium">New messages in Order #{extractOrderId(orderId).slice(0, 8)}</p>
                               <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
                                 {count}
                               </span>
@@ -547,11 +554,11 @@ const Header = () => {
                           Object.entries(chatNotifications).map(([orderId, count]) => (
                             <div
                               key={orderId}
-                              onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                              onClick={() => router.push(`/orders/${extractOrderId(orderId)}?openChat=true`)}
                               className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
                             >
                               <div className="flex items-center justify-between">
-                                <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                                <p className="font-medium">New messages in Order #{extractOrderId(orderId).slice(0, 8)}</p>
                                 <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
                                   {count}
                                 </span>
@@ -642,11 +649,11 @@ const Header = () => {
                       Object.entries(chatNotifications).map(([orderId, count]) => (
                         <div
                           key={orderId}
-                          onClick={() => router.push(`/orders/${orderId}?openChat=true`)}
+                          onClick={() => router.push(`/orders/${extractOrderId(orderId)}?openChat=true`)}
                           className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
                         >
                           <div className="flex items-center justify-between">
-                            <p className="font-medium">New messages in Order #{orderId.slice(0, 8)}</p>
+                            <p className="font-medium">New messages in Order #{extractOrderId(orderId).slice(0, 8)}</p>
                             <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
                               {count}
                             </span>

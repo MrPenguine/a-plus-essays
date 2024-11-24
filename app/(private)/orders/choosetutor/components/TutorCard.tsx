@@ -105,7 +105,14 @@ export function TutorCard({ tutor, orderId }: TutorCardProps) {
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start mb-4">
               <div className="text-center sm:text-left mb-4 sm:mb-0">
-                <h3 className="text-xl font-semibold mb-1 text-gray-700 dark:text-secondary-gray-50">{tutor.name}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-xl font-semibold text-gray-700 dark:text-secondary-gray-50">
+                    {tutor.name}
+                  </h3>
+                  <Badge className="bg-green-500 text-white text-xs">
+                    AI FREE
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-2 justify-center sm:justify-start">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
