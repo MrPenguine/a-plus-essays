@@ -14,6 +14,7 @@ import { collection, query, where, updateDoc, doc, getDocs } from "firebase/fire
 import { db } from "@/lib/firebase/config";
 import { signInAnonymously } from "firebase/auth";
 import { SUBJECTS, ASSIGNMENT_TYPES }  from "@/lib/constants"
+import { signInWithCustomToken } from "firebase/auth";
 
 const Hero = () => {
   const { user } = useAuth();
@@ -50,53 +51,71 @@ const Hero = () => {
     }
 
     try {
-      // Create anonymous user
-      const anonUser = await signInAnonymously(auth);
-      const userId = anonUser.user.uid;
+      let userEmail = formData.email;
 
-      // Create user in database
-      await dbService.createUser({
-        userid: userId,
-        email: formData.email || '',
-        name: '',
-        balance: 0,
-        createdAt: new Date().toISOString(),
-        isAnonymous: true
-      });
+      if (!user) {
+        // Create anonymous user through API
+        const response = await fetch('/api/auth/anonymous-signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            referralCode
+          }),
+        });
 
-      // If there's a referral code, create referral record
-      if (referralCode) {
-        // Find the referral record and update it with the new user's ID
-        const referralsRef = collection(db, 'referrals');
-        const q = query(referralsRef, where('referralCode', '==', referralCode));
-        const snapshot = await getDocs(q);
+        const data = await response.json();
         
-        if (!snapshot.empty) {
-          const referralDoc = snapshot.docs[0];
-          await updateDoc(doc(referralsRef, referralDoc.id), {
-            referred_uid: userId,
-            updatedAt: new Date().toISOString()
-          });
+        if (!data.success) {
+          if (data.redirect) {
+            toast.error(data.error);
+            router.push(data.redirect);
+            return;
+          }
+          throw new Error(data.error || 'Failed to create user');
+        }
+
+        if (!data.existingUser) {
+          // Sign in with custom token for new users
+          await signInWithCustomToken(auth, data.token);
+        }
+        userEmail = data.email;
+      } else {
+        // Get email for logged in user
+        const response = await fetch('/api/auth/anonymous-signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.uid
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          userEmail = data.email;
         }
       }
 
-      // Create project
-      const result = await handleProjectCreation(formData);
+      // Create project with verified email
+      const result = await handleProjectCreation({
+        ...formData,
+        email: userEmail
+      });
       
       if (result.success) {
-        if (window.innerWidth < 768) {
-          const searchParams = new URLSearchParams({
-            title: formData.projectTitle,
-            type: formData.assignmentType
-          });
-          router.push(`/chat?${searchParams.toString()}`);
-        } else {
-          const searchParams = new URLSearchParams({
-            title: formData.projectTitle,
-            type: formData.assignmentType
-          });
-          router.push(`/createproject?${searchParams.toString()}`);
-        }
+        const searchParams = new URLSearchParams({
+          title: formData.projectTitle,
+          type: formData.assignmentType
+        });
+        
+        router.push(window.innerWidth < 768 
+          ? `/chat?${searchParams.toString()}`
+          : `/createproject?${searchParams.toString()}`
+        );
       } else {
         toast.error(result.error || "Failed to process request");
       }
