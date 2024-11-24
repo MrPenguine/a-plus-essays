@@ -234,14 +234,9 @@ const Header = () => {
     const formatPhotoURL = (url: string) => {
       if (!url) return '/default-avatar.png';
       
-      // Check if it's a Backblaze URL
-      if (url.includes('backblazeb2.com')) {
-        // Split the URL by '/'
-        const urlParts = url.split('/');
-        // Get the filename
-        const fileName = urlParts[urlParts.length - 1];
-        // Reconstruct the URL with profile_pictures directory
-        return `https://f005.backblazeb2.com/file/a-plus-essays/profile_pictures/${fileName}`;
+      // Check if it's a Google Drive URL
+      if (url.includes('drive.google.com')) {
+        return url; // Return Google Drive URL as is
       }
       
       return url;

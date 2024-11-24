@@ -1,5 +1,5 @@
 {
-  "name": "a-plus-essays",
+  "name": "a-plus-assists",
   "version": "0.2.0",
   "private": true,
   "scripts": {
@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.14.0",
     "@hookform/resolvers": "^3.3.4",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.0.4",
@@ -44,6 +45,7 @@
     "firebase": "^11.0.1",
     "firebase-admin": "^12.7.0",
     "framer-motion": "^10.12.16",
+    "googleapis": "^144.0.0",
     "intasend-node": "^1.1.2",
     "jspdf": "^2.5.2",
     "lodash": "^4.17.21",
@@ -73,6 +75,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/google-cloud__storage": "^2.3.1",
     "@types/node": "^20.8.9",
     "@types/react": "^18.2.32",
     "@types/react-dom": "^18.2.14",
