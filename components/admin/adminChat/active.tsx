@@ -15,6 +15,7 @@ import { dbService } from "@/lib/firebase/db-service";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAdminMessages } from '@/hooks/useAdminMessages';
 
 interface ActiveChatProps {
   onClose: () => void;
@@ -68,7 +69,7 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Record<string, number>>({});
+  const { notifications } = useAdminMessages();
   const messageContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch orders
@@ -188,42 +189,37 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
     return () => unsubscribe();
   }, [selectedOrder, selectedTutor]);
 
-  // Listen to notifications
-  useEffect(() => {
-    const notificationsRef = collection(db, 'notifications');
-    const q = query(notificationsRef);
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newNotifications: Record<string, number> = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (!data.read) {
-          newNotifications[data.orderid] = (data.unreadCount || 0);
-        }
-      });
-      setNotifications(newNotifications);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Mark messages as read
+  // Mark messages as read - only for notifications meant for tutor
   const markMessagesAsRead = async (orderId: string, tutorId?: string) => {
-    const notificationsRef = collection(db, 'notifications');
-    const notificationId = tutorId ? `bidding_${orderId}_${tutorId}` : orderId;
-    
-    const q = query(
-      notificationsRef,
-      where('orderid', '==', notificationId)
-    );
+    const currentTutorId = tutorId || selectedOrder?.tutorid;
+    if (!currentTutorId) return;
 
-    const snapshot = await getDocs(q);
-    snapshot.docs.forEach(async (doc) => {
-      await updateDoc(doc.ref, {
-        read: true,
-        unreadCount: 0
-      });
-    });
+    try {
+      const notificationsRef = collection(db, 'notifications');
+      const notificationId = tutorId ? `bidding_${orderId}_${tutorId}` : orderId;
+      
+      const q = query(
+        notificationsRef,
+        where('orderid', '==', notificationId)
+      );
+
+      const snapshot = await getDocs(q);
+      
+      for (const doc of snapshot.docs) {
+        if (doc.exists()) {
+          const notificationData = doc.data();
+          // Only mark as read if notification is meant for tutor (userid === tutorId)
+          if (notificationData.userid === notificationData.tutorId) {
+            await updateDoc(doc.ref, {
+              adminread: true,
+              unreadadmincount: 0  // Reset admin unread count
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
   };
 
   // Handle order selection
@@ -245,6 +241,7 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
     }
   };
 
+  // Keep notification creation in handleSendMessage for users
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedOrder) return;
 
@@ -253,12 +250,13 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
 
     const messageData = {
       message: newMessage.trim(),
-      sender: tutorId, // Send as tutor
+      sender: tutorId,
       timestamp: new Date().toISOString(),
-      tutorId: tutorId
+      tutorId: tutorId  // Include tutorId in message data
     };
 
     try {
+      // Messages update
       const messagesRef = collection(db, 'messages');
       const q = query(messagesRef, where('orderid', '==', selectedOrder.id));
       const querySnapshot = await getDocs(q);
@@ -276,14 +274,14 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
         });
       }
 
-      // Update notifications for the user
+      // Create notification for the user (not the tutor)
       const notificationsRef = collection(db, 'notifications');
       const notificationId = selectedOrder.tutorid ? selectedOrder.id : `bidding_${selectedOrder.id}_${tutorId}`;
 
       const notificationQuery = query(
         notificationsRef,
         where('orderid', '==', notificationId),
-        where('userid', '==', selectedOrder.userid)
+        where('userid', '==', selectedOrder.userid)  // Create notification for the user
       );
       
       const notificationSnapshot = await getDocs(notificationQuery);
@@ -294,9 +292,12 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
           userid: selectedOrder.userid,
           message: `New message in ${selectedOrder.title}`,
           timestamp: new Date().toISOString(),
-          read: false,
+          read: false,          // Set read false for user
+          adminread: false,     // Set adminread false for admin
           ordertitle: selectedOrder.title,
-          unreadCount: 1
+          unreadCount: 1,       // For user
+          unreadadmincount: 0,  // For admin (this is user's message)
+          tutorId: tutorId
         });
       } else {
         const notificationDoc = notificationSnapshot.docs[0];
@@ -304,7 +305,7 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
           timestamp: new Date().toISOString(),
           message: `New message in ${selectedOrder.title}`,
           read: false,
-          unreadCount: increment(1)
+          unreadCount: increment(1)  // Increment user's unread count
         });
       }
 
@@ -375,7 +376,7 @@ export function ActiveChat({ onClose }: ActiveChatProps) {
                       </div>
                     </div>
                     {notifications[order.id] > 0 && (
-                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
+                      <span className="absolute top-3 right-3 inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
                         {notifications[order.id]}
                       </span>
                     )}

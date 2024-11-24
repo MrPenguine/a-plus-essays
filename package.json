@@ -28,6 +28,7 @@
     "@types/ably": "^1.0.0",
     "@types/lodash": "^4.17.13",
     "@types/lodash-es": "^4.17.12",
+    "@vercel/speed-insights": "^1.1.0",
     "ably": "^2.5.0",
     "axios": "^1.7.7",
     "backblaze-b2": "^1.7.0",

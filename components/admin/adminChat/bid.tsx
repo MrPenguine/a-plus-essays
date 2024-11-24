@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { X, Send, ArrowLeft } from "lucide-react";
+import { X, Send, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, query, where, getDocs, orderBy, addDoc, updateDoc, arrayUnion, increment, doc, onSnapshot } from "firebase/firestore";
@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useNewBidMessage } from '@/hooks/useNewBidMessage';
 import { useBidNotifications } from '@/hooks/useBidNotifications';
+import { useUnifiedChatNotifications } from '@/hooks/useUnifiedChatNotifications';
 
 interface Order {
   id: string;
@@ -39,6 +40,8 @@ interface Message {
   tutorId: string;
   isBidding: true;
   read?: boolean;
+  adminread?: boolean;
+  unreadadmincount?: number;
 }
 
 interface NotificationIndicatorProps {
@@ -75,6 +78,7 @@ interface BidChatProps {
 }
 
 export function BidChat({ onClose }: BidChatProps) {
+  const [bidChatNotifications, setBidChatNotifications] = useState<number>(0);
   const [orders, setOrders] = useState<Order[]>([]);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -84,7 +88,11 @@ export function BidChat({ onClose }: BidChatProps) {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Record<string, number>>({});
+  const [orderNotifications, setOrderNotifications] = useState<Record<string, number>>({});
   const messageContainerRef = useRef<HTMLDivElement>(null);
+  const [showTutors, setShowTutors] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'tutors' | 'messages'>('details');
+  const [orderTotalUnreadCounts, setOrderTotalUnreadCounts] = useState<Record<string, number>>({});
 
   const { messages: bidMessages, unreadCount, markMessagesAsRead } = useNewBidMessage(
     selectedOrder?.id || '',
@@ -92,6 +100,7 @@ export function BidChat({ onClose }: BidChatProps) {
   );
 
   const bidNotifications = useBidNotifications();
+  const { notifications: unifiedNotifications, markAsRead, createNotification, getUnreadCount } = useUnifiedChatNotifications();
 
   useEffect(() => {
     if (bidMessages.length > 0) {
@@ -111,12 +120,14 @@ export function BidChat({ onClose }: BidChatProps) {
         const orderIdsWithTimestamp = new Map();
         messagesSnapshot.docs.forEach(doc => {
           const data = doc.data();
-          const messages = data.messages || [];
-          if (messages.length > 0) {
+          if (data.messages && data.messages.length > 0) {
             const latestMessageTime = Math.max(
-              ...messages.map(m => new Date(m.timestamp).getTime())
+              ...data.messages.map(m => new Date(m.timestamp).getTime())
             );
-            orderIdsWithTimestamp.set(data.orderid, latestMessageTime);
+            orderIdsWithTimestamp.set(data.orderid, {
+              timestamp: latestMessageTime,
+              hasUnreadMessages: data.messages.some(m => !m.read)
+            });
           }
         });
 
@@ -138,7 +149,8 @@ export function BidChat({ onClose }: BidChatProps) {
               return {
                 id: orderDoc.id,
                 ...orderData,
-                latestMessageTime: orderIdsWithTimestamp.get(orderId)
+                latestMessageTime: orderIdsWithTimestamp.get(orderId).timestamp,
+                hasUnreadMessages: orderIdsWithTimestamp.get(orderId).hasUnreadMessages
               };
             }
           }
@@ -146,14 +158,12 @@ export function BidChat({ onClose }: BidChatProps) {
         });
 
         const results = await Promise.all(orderPromises);
-        const validOrders = results.filter((order): order is Order & { latestMessageTime: number } => 
-          order !== null
-        );
+        const validOrders = results.filter(Boolean);
 
         // Sort by latest message timestamp
-        const sortedOrders = validOrders.sort((a, b) => {
-          return b.latestMessageTime - a.latestMessageTime;
-        });
+        const sortedOrders = validOrders.sort((a, b) => 
+          b.latestMessageTime - a.latestMessageTime
+        );
 
         setOrders(sortedOrders);
       } catch (error) {
@@ -200,6 +210,28 @@ export function BidChat({ onClose }: BidChatProps) {
         const data = await response.json();
         if (data.messages) {
           setMessages(data.messages);
+          
+          // Mark messages as read when loaded
+          const messagesRef = collection(db, 'messages');
+          const q = query(
+            messagesRef,
+            where('orderid', '==', selectedOrder.id),
+            where('tutorId', '==', selectedTutor.tutorid)
+          );
+
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            const messageDoc = snapshot.docs[0];
+            const messages = messageDoc.data().messages || [];
+            const updatedMessages = messages.map((msg: Message) => ({
+              ...msg,
+              read: true
+            }));
+
+            await updateDoc(messageDoc.ref, {
+              messages: updatedMessages
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -228,45 +260,153 @@ export function BidChat({ onClose }: BidChatProps) {
 
   // Listen to notifications
   useEffect(() => {
-    const notificationsRef = collection(db, 'messages');
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('chatType', '==', 'bidding'));
     
-    const unsubscribe = onSnapshot(notificationsRef, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const newNotifications: Record<string, number> = {};
+      const newOrderNotifications: Record<string, number> = {};
+      const newOrderTotalUnreads: Record<string, number> = {};
       
-      snapshot.docChanges().forEach(change => {
-        const data = change.doc.data();
-        if (data.messages && Array.isArray(data.messages)) {
-          // Group unread messages by tutor
-          data.messages.forEach((msg: Message) => {
-            if (msg.isBidding && !msg.read) {
-              // For unread messages, create a key combining order and tutor
-              const key = `${data.orderid}_${msg.tutorId}`;
-              newNotifications[key] = (newNotifications[key] || 0) + 1;
-            }
-          });
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (
+          data.chatType === 'bidding' && 
+          data.adminread === false && 
+          typeof data.unreadadmincount === 'number' && 
+          data.unreadadmincount > 0
+        ) {
+          // Extract the order ID from the notification ID
+          const orderId = data.orderid.split('bidding_')[1]?.split('_')[0];
+          if (!orderId) return;
+
+          // Track individual tutor notifications
+          if (data.tutorId) {
+            newNotifications[data.tutorId] = data.unreadadmincount;
+          }
+          
+          // Sum up notifications for each order
+          newOrderTotalUnreads[orderId] = (newOrderTotalUnreads[orderId] || 0) + data.unreadadmincount;
         }
       });
 
-      setNotifications(prev => ({
-        ...prev,
-        ...newNotifications
-      }));
+      setNotifications(newNotifications);
+      setOrderTotalUnreadCounts(newOrderTotalUnreads);
     });
 
     return () => unsubscribe();
   }, []);
 
+  // Add this effect to track unread messages at all levels
+  useEffect(() => {
+    const messagesRef = collection(db, 'messages');
+    const q = query(messagesRef);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newNotifications: Record<string, number> = {};
+      const newOrderNotifications: Record<string, number> = {};
+      let totalUnreadCount = 0;
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.messages && Array.isArray(data.messages)) {
+          // Only count messages that are not from the current user
+          const unreadMessages = data.messages.filter(msg => 
+            msg.isBidding && !msg.read && msg.sender !== user?.uid
+          );
+          
+          if (unreadMessages.length > 0) {
+            // For tutor-level notifications
+            unreadMessages.forEach(msg => {
+              const tutorKey = msg.tutorId;
+              newNotifications[tutorKey] = (newNotifications[tutorKey] || 0) + 1;
+            });
+
+            // For order-level notifications
+            newOrderNotifications[data.orderid] = unreadMessages.length;
+            totalUnreadCount += unreadMessages.length;
+          }
+        }
+      });
+
+      setNotifications(newNotifications);
+      setOrderNotifications(newOrderNotifications);
+      setBidChatNotifications(totalUnreadCount);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Add this effect to track unread messages at order level
+  useEffect(() => {
+    const messagesRef = collection(db, 'messages');
+    const q = query(messagesRef);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newOrderNotifications: Record<string, number> = {};
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.messages && Array.isArray(data.messages)) {
+          // Count all unread bidding messages for this order
+          const unreadMessages = data.messages.filter(msg => 
+            msg.isBidding && !msg.read && msg.sender !== user?.uid
+          );
+          
+          if (unreadMessages.length > 0) {
+            // Group by order
+            newOrderNotifications[data.orderid] = unreadMessages.length;
+          }
+        }
+      });
+
+      setOrderNotifications(newOrderNotifications);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Add state to track which orders have their tutors list expanded
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+
+  // Modify the toggle function
+  const toggleTutorsList = (orderId: string) => {
+    setExpandedOrders(prev => ({
+      ...prev,
+      [orderId]: !prev[orderId]
+    }));
+    setSelectedOrder(orders.find(o => o.id === orderId) || null);
+  };
+
   const handleOrderSelect = (order: Order) => {
     setSelectedOrder(order);
     setSelectedTutor(null);
     setMessages([]);
+    // Don't mark messages as read here - wait until specific tutor chat is opened
   };
 
   const handleTutorSelect = async (tutor: Tutor) => {
     setSelectedTutor(tutor);
     if (selectedOrder) {
       try {
-        await bidNotifications.markMessagesAsRead(selectedOrder.id, tutor.tutorid);
+        // Update notifications collection
+        const notificationsRef = collection(db, 'notifications');
+        const notificationId = `bidding_${selectedOrder.id}_${tutor.tutorid}`;
+        
+        const q = query(
+          notificationsRef,
+          where('orderid', '==', notificationId),
+          where('chatType', '==', 'bidding')
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        for (const doc of snapshot.docs) {
+          await updateDoc(doc.ref, {
+            adminread: true,
+            unreadadmincount: 0
+          });
+        }
       } catch (error) {
         console.error('Error marking messages as read:', error);
       }
@@ -291,53 +431,61 @@ export function BidChat({ onClose }: BidChatProps) {
       timestamp: new Date().toISOString(),
       tutorId: selectedTutor.tutorid,
       isBidding: true,
-      read: false
+      read: false,
+      adminread: true,
+      unreadadmincount: 0
     };
 
     try {
+      // Save message in tutor-specific message document
       const messagesRef = collection(db, 'messages');
       const q = query(
         messagesRef,
-        where('orderid', '==', selectedOrder.id)
+        where('orderid', '==', selectedOrder.id),
+        where('tutorId', '==', selectedTutor.tutorid)  // Add tutorId to query
       );
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
+        // Create new message document for this tutor
         await addDoc(messagesRef, {
           orderid: selectedOrder.id,
+          tutorId: selectedTutor.tutorid,  // Add tutorId to document
           messages: [messageData]
         });
       } else {
         const messageDoc = querySnapshot.docs[0];
-        const currentMessages = messageDoc.data().messages || [];
         await updateDoc(messageDoc.ref, {
-          messages: [...currentMessages, messageData]
+          messages: arrayUnion(messageData)
         });
       }
 
-      // Create notification for the user
+      // Create tutor-specific notification
       const notificationsRef = collection(db, 'notifications');
       const notificationId = `bidding_${selectedOrder.id}_${selectedTutor.tutorid}`;
       
       const notificationQuery = query(
         notificationsRef,
-        where('orderid', '==', notificationId),
-        where('userid', '==', selectedOrder.userid)
+        where('orderid', '==', notificationId)  // Use combined ID for unique notifications
       );
       
       const notificationSnapshot = await getDocs(notificationQuery);
       
       if (notificationSnapshot.empty) {
         await addDoc(notificationsRef, {
-          orderid: notificationId,
+          orderid: notificationId,  // Use combined ID
           userid: selectedOrder.userid,
           message: `New message from ${selectedTutor.tutor_name} in Order #${selectedOrder.id.slice(0, 8)}`,
           timestamp: new Date().toISOString(),
           read: false,
+          adminread: true,
           ordertitle: selectedOrder.title,
           unreadCount: 1,
+          unreadadmincount: 0,
           isBidding: true,
-          tutorId: selectedTutor.tutorid
+          chatType: 'bidding',
+          tutorId: selectedTutor.tutorid,  // Add tutorId to notification
+          displayOrderId: selectedOrder.id  // For linking to order page
         });
       } else {
         const notificationDoc = notificationSnapshot.docs[0];
@@ -374,6 +522,74 @@ export function BidChat({ onClose }: BidChatProps) {
     }
   }, [selectedTutor, selectedOrder]);
 
+  // Add this effect to handle notifications at tutor level
+  useEffect(() => {
+    if (!selectedOrder) return;
+
+    const messagesRef = collection(db, 'messages');
+    const q = query(messagesRef, where('orderid', '==', selectedOrder.id));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newNotifications: Record<string, number> = {};
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.messages && Array.isArray(data.messages)) {
+          data.messages.forEach((msg: Message) => {
+            if (!msg.read) {
+              const key = msg.tutorId;
+              newNotifications[key] = (newNotifications[key] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      setNotifications(newNotifications);
+    });
+
+    return () => unsubscribe();
+  }, [selectedOrder]);
+
+  // Add this function to check if an order has any unread messages
+  const hasUnreadMessagesForOrder = (orderId: string) => {
+    return tutors.some(tutor => notifications[tutor.tutorid] > 0);
+  };
+
+  // Add this effect to track total unread messages across all bid chats
+  useEffect(() => {
+    const messagesRef = collection(db, 'messages');
+    
+    const unsubscribe = onSnapshot(messagesRef, (snapshot) => {
+      let totalUnreadCount = 0;
+      const newOrderNotifications: Record<string, number> = {};
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.messages && Array.isArray(data.messages)) {
+          // Count all unread bidding messages
+          const unreadMessages = data.messages.filter((msg: Message) => 
+            msg.isBidding && !msg.read
+          );
+          
+          if (unreadMessages.length > 0) {
+            totalUnreadCount += unreadMessages.length;
+            newOrderNotifications[data.orderid] = unreadMessages.length;
+          }
+        }
+      });
+      
+      setBidChatNotifications(totalUnreadCount);
+      setOrderNotifications(newOrderNotifications);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Add this function to get total unread count for an order
+  const getTotalUnreadCount = (orderId: string) => {
+    return orderNotifications[orderId] || 0;
+  };
+
   return (
     <>
       {/* Overlay - only show on desktop */}
@@ -382,7 +598,7 @@ export function BidChat({ onClose }: BidChatProps) {
         onClick={onClose}
       />
       
-      {/* Chat Panel - modified for responsive design */}
+      {/* Chat Panel */}
       <div className="fixed md:right-6 md:bottom-6 inset-0 md:inset-auto md:h-[600px] md:w-[400px] 
         bg-white dark:bg-gray-900 shadow-xl md:rounded-lg border border-gray-200 
         dark:border-gray-700 flex flex-col z-50">
@@ -391,86 +607,79 @@ export function BidChat({ onClose }: BidChatProps) {
             <div className="flex items-center justify-center h-full p-8">
               <p>Loading orders...</p>
             </div>
-          ) : !selectedOrder ? (
-            // Orders List
-            <>
-              <div className="sticky top-0 p-4 border-b border-gray-200 dark:border-gray-700 
-                flex justify-between items-center bg-white dark:bg-gray-900">
-                <h2 className="text-lg font-semibold">Bidding Orders</h2>
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {orders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => handleOrderSelect(order)}
-                    className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer relative"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medium">{order.title}</h3>
-                      <p className="text-sm text-gray-500">#{order.id.slice(0, 8)}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge className="relative">
-                          Bidding
-                          {bidNotifications.hasUnreadMessages(order.id) && (
-                            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-600" />
-                          )}
-                        </Badge>
-                      </div>
-                    </div>
-                    {bidNotifications.getUnreadCount(selectedOrder?.id || '', order.id) > 0 && (
-                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
-                        {bidNotifications.getUnreadCount(selectedOrder?.id || '', order.id)}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
           ) : !selectedTutor ? (
-            // Tutors List
             <>
               <div className="sticky top-0 p-4 border-b border-gray-200 dark:border-gray-700 
                 flex items-center justify-between bg-white dark:bg-gray-900">
-                <div className="flex items-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSelectedOrder(null)}
-                    className="mr-2"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                  <h2 className="font-semibold">Select Tutor to Chat As</h2>
-                </div>
+                <h2 className="font-semibold text-lg">Bidding Orders</h2>
                 <Button variant="ghost" size="icon" onClick={onClose}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
+
               <div className="flex-1 overflow-y-auto">
-                {tutors.map((tutor) => (
-                  <div
-                    key={tutor.tutorid}
-                    onClick={() => handleTutorSelect(tutor)}
-                    className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer relative"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={tutor.profile_picture} />
-                      <AvatarFallback>{tutor.tutor_name.substring(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h3 className="font-medium">{tutor.tutor_name}</h3>
+                {orders.map((order) => (
+                  <div key={order.id} className="border-b border-gray-200 dark:border-gray-700">
+                    {/* Order Details Card */}
+                    <div className="p-4 bg-gray-50 dark:bg-gray-800 relative">
+                      <h3 className="font-medium text-lg">{order.title}</h3>
+                      <p className="text-sm text-gray-500 mt-1">#{order.id.slice(0, 8)}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge className="relative">
+                          Bidding
+                          {orderTotalUnreadCounts[order.id] > 0 && (
+                            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-600" />
+                          )}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1 ml-2"
+                          onClick={() => toggleTutorsList(order.id)}
+                        >
+                          Available Tutors
+                          {expandedOrders[order.id] ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                          {orderTotalUnreadCounts[order.id] > 0 && (
+                            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full">
+                              {orderTotalUnreadCounts[order.id]}
+                            </span>
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                    {bidNotifications.getUnreadCount(selectedOrder?.id || '', tutor.tutorid) > 0 && (
-                      <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
-                        {bidNotifications.getUnreadCount(selectedOrder?.id || '', tutor.tutorid)}
-                      </span>
+
+                    {/* Tutors List - Show when expanded */}
+                    {expandedOrders[order.id] && (
+                      <div className="bg-white dark:bg-gray-900">
+                        {tutors.map((tutor) => (
+                          <div
+                            key={tutor.tutorid}
+                            onClick={() => handleTutorSelect(tutor)}
+                            className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b relative"
+                          >
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={tutor.profile_picture} />
+                              <AvatarFallback>{tutor.tutor_name.substring(0, 2)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <h3 className="font-medium">{tutor.tutor_name}</h3>
+                            </div>
+                            {notifications[tutor.tutorid] > 0 && (
+                              <span className="absolute top-3 right-3 inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-600 rounded-full">
+                                {notifications[tutor.tutorid]}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ))}
-              </div>
+                </div>
             </>
           ) : (
             // Chat View

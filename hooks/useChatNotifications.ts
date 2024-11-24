@@ -1,105 +1,55 @@
-// @ts-nocheck
-
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
-import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, updateDoc, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/hooks';
 
-interface ChatNotification {
-  orderId: string;
-  unreadCount: number;
-}
-
 export function useChatNotifications() {
+  const [chatNotifications, setChatNotifications] = useState<Record<string, number>>({});
   const { user } = useAuth();
-  const [chatNotifications, setChatNotifications] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     if (!user) return;
 
-    // Listen for messages in all user's orders
-    const ordersRef = collection(db, 'orders');
-    const ordersQuery = query(
-      ordersRef,
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(
+      notificationsRef,
       where('userid', '==', user.uid),
-      where('status', 'in', ['pending', 'in_progress'])
+      where('read', '==', false)
     );
 
-    const unsubscribeOrders = onSnapshot(ordersQuery, async (orderSnapshot) => {
-      const orderIds = orderSnapshot.docs.map(doc => doc.id);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifications: Record<string, number> = {};
       
-      // Only set up messages listener if there are orders
-      if (orderIds.length > 0) {
-        const messagesRef = collection(db, 'messages');
-        const messagesQuery = query(
-          messagesRef,
-          where('orderid', 'in', orderIds)
-        );
-
-        const unsubscribeMessages = onSnapshot(messagesQuery, (messageSnapshot) => {
-          const notifications: { [key: string]: number } = {};
-
-          messageSnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.messages) {
-              // Count unread messages (messages where sender is not the current user)
-              const unreadCount = data.messages.filter(
-                (msg: any) => msg.sender !== user.uid && !msg.read
-              ).length;
-              
-              if (unreadCount > 0) {
-                notifications[data.orderid] = unreadCount;
-              }
-            }
-          });
-
-          setChatNotifications(notifications);
-        });
-
-        return () => {
-          unsubscribeMessages();
-        };
-      } else {
-        // Clear notifications if no orders
-        setChatNotifications({});
-      }
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        notifications[data.orderid] = data.unreadCount || 0;
+      });
+      
+      setChatNotifications(notifications);
     });
 
-    return () => {
-      unsubscribeOrders();
-    };
+    return () => unsubscribe();
   }, [user]);
 
   const markMessagesAsRead = async (orderId: string) => {
     if (!user) return;
 
-    try {
-      const messagesRef = collection(db, 'messages');
-      const q = query(messagesRef, where('orderid', '==', orderId));
-      const snapshot = await getDocs(q);
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(
+      notificationsRef,
+      where('orderid', '==', orderId),
+      where('userid', '==', user.uid)
+    );
 
-      if (!snapshot.empty) {
-        const messageDoc = snapshot.docs[0];
-        const messages = messageDoc.data().messages;
+    const snapshot = await getDocs(q);
+    const updatePromises = snapshot.docs.map((doc) =>
+      updateDoc(doc.ref, {
+        read: true,
+        unreadCount: 0
+      })
+    );
 
-        // Mark all messages as read
-        const updatedMessages = messages.map((msg: any) => ({
-          ...msg,
-          read: true
-        }));
-
-        await updateDoc(messageDoc.ref, {
-          messages: updatedMessages
-        });
-
-        // Update local state
-        const newNotifications = { ...chatNotifications };
-        delete newNotifications[orderId];
-        setChatNotifications(newNotifications);
-      }
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
+    await Promise.all(updatePromises);
   };
 
   return { chatNotifications, markMessagesAsRead };

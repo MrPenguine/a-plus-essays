@@ -123,8 +123,8 @@ interface AppSidebarProps {
 
 export function AppSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
-  const bidNotifications = useBidNotifications();
   const [activeChatNotifications, setActiveChatNotifications] = useState<number>(0);
+  const [bidChatNotifications, setBidChatNotifications] = useState<number>(0);
   const [projectCounts, setProjectCounts] = useState<ProjectCounts>({
     all: 0,
     pending: 0,
@@ -132,6 +132,32 @@ export function AppSidebar({ className }: { className?: string }) {
     completed: 0,
     cancelled: 0
   });
+
+  // Update the bid chat notifications effect
+  useEffect(() => {
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('chatType', '==', 'bidding'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let totalUnreadBidMessages = 0;
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        // Count unreadadmincount for all bidding chats where adminread is false
+        if (
+          data.chatType === 'bidding' && 
+          data.adminread === false && 
+          typeof data.unreadadmincount === 'number'
+        ) {
+          totalUnreadBidMessages += data.unreadadmincount;
+        }
+      });
+      
+      setBidChatNotifications(totalUnreadBidMessages);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Listen to active chat notifications
   useEffect(() => {
@@ -142,9 +168,15 @@ export function AppSidebar({ className }: { className?: string }) {
       let totalUnread = 0;
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        // Add safety check for orderid existence
-        if (!data.read && data.orderid && !data.orderid.startsWith('bidding_')) {
-          totalUnread += (data.unreadCount || 0);
+        // Only count notifications where adminread is false and has unreadadmincount
+        if (
+          data.adminread === false && 
+          typeof data.unreadadmincount === 'number' && 
+          data.unreadadmincount > 0 &&
+          data.orderid && 
+          !data.orderid.startsWith('bidding_')
+        ) {
+          totalUnread += data.unreadadmincount;
         }
       });
       setActiveChatNotifications(totalUnread);
@@ -198,11 +230,6 @@ export function AppSidebar({ className }: { className?: string }) {
 
     fetchProjectCounts();
   }, []);
-
-  // Calculate total unread bid messages
-  const totalUnreadBidMessages = React.useMemo(() => {
-    return Object.values(bidNotifications.notifications).reduce((total, count) => total + count, 0);
-  }, [bidNotifications.notifications]);
 
   return (
     <Sidebar 
@@ -260,8 +287,8 @@ export function AppSidebar({ className }: { className?: string }) {
                               } />
                             )}
                             {/* Chat notifications */}
-                            {subItem.title === "Bid Chats" && totalUnreadBidMessages > 0 && (
-                              <NotificationBadge count={totalUnreadBidMessages} />
+                            {subItem.title === "Bid Chats" && bidChatNotifications > 0 && (
+                              <NotificationBadge count={bidChatNotifications} />
                             )}
                             {subItem.title === "Active Chats" && activeChatNotifications > 0 && (
                               <NotificationBadge count={activeChatNotifications} />

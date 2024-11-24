@@ -36,6 +36,7 @@ import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { IoIosNotifications } from 'react-icons/io';
 import { useAdmin } from "@/lib/firebase/hooks/useAdmin";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 interface UserProfile {
   email: string;
@@ -295,7 +296,7 @@ const Header = () => {
               </div>
             </div>
           </Link>
-
+          <SpeedInsights />
           <div className="flex items-center gap-4 xl:hidden">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -498,6 +499,30 @@ const Header = () => {
                 </>
               )}
             </ul>
+
+            {!user && (
+              <div className="mt-8 flex flex-col gap-4 xl:hidden border-t border-gray-200 dark:border-gray-700 pt-4">
+                <Link 
+                  href="/auth/signup"
+                  onClick={() => setNavigationOpen(false)}
+                >
+                  <Button
+                    className="w-full bg-primary hover:bg-primary/90 text-white dark:hover:bg-primary/90 dark:hover:text-white"
+                  >
+                    Sign up
+                  </Button>
+                </Link>
+                <div className="text-center">
+                  <Link
+                    href="/auth/signin"
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary"
+                    onClick={() => setNavigationOpen(false)}
+                  >
+                    Sign in
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {user && (
               <div className="mt-4 flex flex-col gap-4 xl:hidden border-t border-gray-200 dark:border-gray-700 pt-4">

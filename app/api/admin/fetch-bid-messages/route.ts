@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/config';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 interface Message {
   message: string;
@@ -16,15 +16,15 @@ interface ProcessedMessage extends Message {
 }
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const orderId = searchParams.get('orderId');
+  const tutorId = searchParams.get('tutorId');
+
+  if (!orderId || !tutorId) {
+    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const orderId = searchParams.get('orderId');
-    const tutorId = searchParams.get('tutorId');
-
-    if (!orderId || !tutorId) {
-      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
-    }
-
     const messagesRef = collection(db, 'messages');
     const q = query(
       messagesRef,
@@ -32,42 +32,22 @@ export async function GET(request: Request) {
     );
 
     const snapshot = await getDocs(q);
-    let allMessages: ProcessedMessage[] = [];
-    let unreadCount = 0;
+    if (!snapshot.empty) {
+      const messageDoc = snapshot.docs[0];
+      const messages = messageDoc.data().messages || [];
 
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.messages && Array.isArray(data.messages)) {
-        const relevantMessages = data.messages
-          .filter((msg: Message) => {
-            const isForThisTutor = msg.tutorId === tutorId;
-            const isBiddingMessage = msg.isBidding === true;
+      // Include read status in the response
+      const processedMessages = messages.map((msg: Message) => ({
+        ...msg,
+        read: msg.read || false
+      }));
 
-            if (isForThisTutor && isBiddingMessage && !msg.read && msg.sender !== tutorId) {
-              unreadCount++;
-            }
+      return NextResponse.json({ messages: processedMessages });
+    }
 
-            return isForThisTutor && isBiddingMessage;
-          })
-          .map((msg: Message) => ({
-            ...msg,
-            isFromTutor: msg.sender === tutorId
-          }));
-
-        allMessages = [...allMessages, ...relevantMessages];
-      }
-    });
-
-    const sortedMessages = allMessages.sort((a, b) => 
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-
-    return NextResponse.json({ 
-      messages: sortedMessages,
-      unreadCount
-    });
+    return NextResponse.json({ messages: [] });
   } catch (error) {
-    console.error('Error fetching bid messages:', error);
+    console.error('Error fetching messages:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

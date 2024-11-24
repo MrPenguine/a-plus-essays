@@ -1,88 +1,48 @@
 // @ts-nocheck
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
-import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
-import { useAuth } from '@/lib/firebase/hooks';
+import { collection, query, where, onSnapshot, updateDoc, getDocs } from 'firebase/firestore';
 
-export function useAdminChatNotifications() {
-  const [notifications, setNotifications] = useState<{ [key: string]: number }>({});
-  const { user } = useAuth();
+export function useAdminChatNotifications(orderId?: string) {
+  const [adminNotifications, setAdminNotifications] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!user) return;
+    const notificationsRef = collection(db, 'adminNotifications');
+    const q = orderId 
+      ? query(notificationsRef, where('orderid', '==', orderId), where('read', '==', false))
+      : query(notificationsRef, where('read', '==', false));
 
-    const fetchNotifications = async () => {
-      try {
-        const adminNotificationsRef = collection(db, 'adminNotifications');
-        const q = query(
-          adminNotificationsRef,
-          where('read', '==', false)
-        );
-
-        const querySnapshot = await getDocs(q);
-        const notificationsData: { [key: string]: number } = {};
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.orderid) {
-            notificationsData[data.orderid] = (notificationsData[data.orderid] || 0) + (data.unreadCount || 1);
-          }
-        });
-
-        setNotifications(notificationsData);
-      } catch (error) {
-        console.error('Error fetching admin chat notifications:', error);
-      }
-    };
-
-    const interval = setInterval(fetchNotifications, 5000);
-    fetchNotifications();
-
-    return () => clearInterval(interval);
-  }, [user]);
-
-  const markMessagesAsRead = async (orderId: string) => {
-    try {
-      const adminNotificationsRef = collection(db, 'adminNotifications');
-      const q = query(
-        adminNotificationsRef,
-        where('orderid', '==', orderId),
-        where('read', '==', false)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const updatePromises = querySnapshot.docs.map(doc => 
-        updateDoc(doc.ref, {
-          read: true,
-          unreadCount: 0
-        })
-      );
-
-      await Promise.all(updatePromises);
-
-      setNotifications(prev => {
-        const updated = { ...prev };
-        delete updated[orderId];
-        return updated;
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifications: Record<string, number> = {};
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        notifications[data.orderid] = data.unreadCount || 0;
       });
-    } catch (error) {
-      console.error('Error marking admin messages as read:', error);
-    }
+      setAdminNotifications(notifications);
+    });
+
+    return () => unsubscribe();
+  }, [orderId]);
+
+  const markAdminMessagesAsRead = async (orderId: string) => {
+    const notificationsRef = collection(db, 'adminNotifications');
+    const q = query(
+      notificationsRef,
+      where('orderid', '==', orderId),
+      where('adminread', '==', false)
+    );
+
+    const snapshot = await getDocs(q);
+    const updatePromises = snapshot.docs.map((doc) =>
+      updateDoc(doc.ref, {
+        read: true,
+        unreadadmincount: 0
+      })
+    );
+
+    await Promise.all(updatePromises);
   };
 
-  const hasUnreadMessages = (orderId: string): boolean => {
-    return !!notifications[orderId];
-  };
-
-  const getUnreadCount = (orderId: string): number => {
-    return notifications[orderId] || 0;
-  };
-
-  return {
-    notifications,
-    markMessagesAsRead,
-    hasUnreadMessages,
-    getUnreadCount
-  };
+  return { adminNotifications, markAdminMessagesAsRead };
 } 
