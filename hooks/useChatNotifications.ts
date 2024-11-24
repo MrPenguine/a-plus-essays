@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
-import { collection, query, where, onSnapshot, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/hooks';
 
 export function useChatNotifications() {
@@ -14,43 +14,27 @@ export function useChatNotifications() {
     const q = query(
       notificationsRef,
       where('userid', '==', user.uid),
-      where('read', '==', false)
+      where('unreadCount', '>', 0)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifications: Record<string, number> = {};
-      
+      const newNotifications: Record<string, number> = {};
+
       snapshot.docs.forEach((doc) => {
         const data = doc.data();
-        notifications[data.orderid] = data.unreadCount || 0;
+        if (data.read === false) {
+          const orderId = data.displayOrderId || data.orderid;
+          if (orderId && data.unreadCount > 0) {
+            newNotifications[orderId] = data.unreadCount;
+          }
+        }
       });
-      
-      setChatNotifications(notifications);
+
+      setChatNotifications(newNotifications);
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  const markMessagesAsRead = async (orderId: string) => {
-    if (!user) return;
-
-    const notificationsRef = collection(db, 'notifications');
-    const q = query(
-      notificationsRef,
-      where('orderid', '==', orderId),
-      where('userid', '==', user.uid)
-    );
-
-    const snapshot = await getDocs(q);
-    const updatePromises = snapshot.docs.map((doc) =>
-      updateDoc(doc.ref, {
-        read: true,
-        unreadCount: 0
-      })
-    );
-
-    await Promise.all(updatePromises);
-  };
-
-  return { chatNotifications, markMessagesAsRead };
+  return { chatNotifications };
 } 

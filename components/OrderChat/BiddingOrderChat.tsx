@@ -194,41 +194,42 @@ export function BiddingOrderChat({ orderid, title, onClose }: OrderChatProps) {
         });
       }
 
-      // Create notification with bidding ID for storage but order ID for display
+      // Create/Update notification
       const notificationsRef = collection(db, 'notifications');
       const notificationId = `bidding_${orderid}_${selectedTutor.id}`;
       
       const notificationQuery = query(
         notificationsRef,
-        where('orderid', '==', notificationId)  // Store with bidding ID
+        where('orderid', '==', notificationId)
       );
       
       const notificationSnapshot = await getDocs(notificationQuery);
       
       if (notificationSnapshot.empty) {
         await addDoc(notificationsRef, {
-          orderid: notificationId,  // Store with bidding ID
-          displayOrderId: orderid,  // Add actual order ID for display/linking
+          orderid: notificationId,
+          displayOrderId: orderid,
           userid: selectedTutor.id,
-          message: `New message in Order #${orderid.slice(0, 8)}`,  // Show actual order ID
+          message: `New message in Order #${orderid.slice(0, 8)}`,
           timestamp: new Date().toISOString(),
-          read: false,
+          read: true,
           adminread: false,
           ordertitle: title,
-          unreadCount: 1,
+          unreadCount: 0,  // Always set to 0
           unreadadmincount: 1,
           isBidding: true,
           chatType: 'bidding',
           tutorId: selectedTutor.id,
-          linkToOrder: orderid  // Add field for navigation
+          linkToOrder: orderid
         });
       } else {
         const notificationDoc = notificationSnapshot.docs[0];
         await updateDoc(notificationDoc.ref, {
           timestamp: new Date().toISOString(),
-          message: `New message in Order #${orderid.slice(0, 8)}`,  // Show actual order ID
-          read: false,
+          message: `New message in Order #${orderid.slice(0, 8)}`,
+          read: true,
           adminread: false,
+          unreadCount: 0,  // Always set to 0
           unreadadmincount: increment(1)
         });
       }

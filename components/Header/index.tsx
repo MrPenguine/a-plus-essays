@@ -280,6 +280,41 @@ const Header = () => {
     return matches ? matches[1] : orderId;
   };
 
+  // Modify the notification display in the PopoverContent
+  const renderNotificationContent = () => (
+    <div className="max-h-[300px] overflow-y-auto">
+      {Object.entries(chatNotifications).length > 0 ? (
+        Object.entries(chatNotifications).map(([orderId, count]) => (
+          <div
+            key={orderId}
+            onClick={() => {
+              router.push(`/orders/${extractOrderId(orderId)}?openChat=true`);
+              // Close the popover after clicking
+              if (typeof document !== 'undefined') {
+                document.body.click();
+              }
+            }}
+            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
+          >
+            <div className="flex items-center justify-between">
+              <p className="font-medium">
+                New message{count > 1 ? 's' : ''} in Order #{extractOrderId(orderId).slice(0, 8)}
+              </p>
+              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                {count}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Click to view conversation
+            </p>
+          </div>
+        ))
+      ) : (
+        <p className="text-center py-4 text-gray-500">No new messages</p>
+      )}
+    </div>
+  );
+
   return (
     <header
       className={`fixed left-0 top-0 z-[999] w-full bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 ${
@@ -328,29 +363,7 @@ const Header = () => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950">
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {Object.entries(chatNotifications).length > 0 ? (
-                        Object.entries(chatNotifications).map(([orderId, count]) => (
-                          <div
-                            key={orderId}
-                            onClick={() => router.push(`/orders/${extractOrderId(orderId)}?openChat=true`)}
-                            className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
-                          >
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium">New messages in Order #{extractOrderId(orderId).slice(0, 8)}</p>
-                              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                                {count}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Click to view messages
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-center py-4 text-gray-500">No new messages</p>
-                      )}
-                    </div>
+                    {renderNotificationContent()}
                   </PopoverContent>
                 </Popover>
               </div>
@@ -549,29 +562,7 @@ const Header = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950">
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {Object.entries(chatNotifications).length > 0 ? (
-                          Object.entries(chatNotifications).map(([orderId, count]) => (
-                            <div
-                              key={orderId}
-                              onClick={() => router.push(`/orders/${extractOrderId(orderId)}?openChat=true`)}
-                              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
-                            >
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium">New messages in Order #{extractOrderId(orderId).slice(0, 8)}</p>
-                                <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                                  {count}
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                Click to view messages
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-center py-4 text-gray-500">No new messages</p>
-                        )}
-                      </div>
+                      {renderNotificationContent()}
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -644,29 +635,7 @@ const Header = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0 bg-white dark:bg-gray-950 z-[999] mt-2">
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {Object.entries(chatNotifications).length > 0 ? (
-                      Object.entries(chatNotifications).map(([orderId, count]) => (
-                        <div
-                          key={orderId}
-                          onClick={() => router.push(`/orders/${extractOrderId(orderId)}?openChat=true`)}
-                          className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0"
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium">New messages in Order #{extractOrderId(orderId).slice(0, 8)}</p>
-                            <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
-                              {count}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            Click to view messages
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-center py-4 text-gray-500">No new messages</p>
-                    )}
-                  </div>
+                  {renderNotificationContent()}
                 </PopoverContent>
               </Popover>
             </div>
