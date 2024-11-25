@@ -29,6 +29,7 @@
     "@types/ably": "^1.0.0",
     "@types/lodash": "^4.17.13",
     "@types/lodash-es": "^4.17.12",
+    "@vercel/analytics": "^1.4.1",
     "@vercel/speed-insights": "^1.1.0",
     "ably": "^2.5.0",
     "axios": "^1.7.7",

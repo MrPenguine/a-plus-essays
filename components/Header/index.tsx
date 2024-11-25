@@ -36,7 +36,7 @@ import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { useChatNotifications } from '@/hooks/useChatNotifications';
 import { IoIosNotifications } from 'react-icons/io';
 import { useAdmin } from "@/lib/firebase/hooks/useAdmin";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+
 
 interface UserProfile {
   email: string;
@@ -333,7 +333,6 @@ const Header = () => {
               </div>
             </div>
           </Link>
-          <SpeedInsights />
           <div className="flex items-center gap-4 xl:hidden">
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
