@@ -1,6 +1,5 @@
 import { drive } from './config';
 import { Readable } from 'stream';
-import { GaxiosResponse } from 'gaxios';
 import { drive_v3 } from 'googleapis';
 
 interface UploadResult {
@@ -61,9 +60,9 @@ export const driveService = {
 
       return {
         success: true,
-        fileId: file.data.id || undefined,
-        fileName: file.data.name || undefined,
-        fileUrl: file.data.webViewLink || undefined
+        fileId: file.data.id,
+        fileName: file.data.name,
+        fileUrl: file.data.webViewLink
       };
     } catch (error) {
       console.error('Error uploading file to Google Drive:', error);
