@@ -17,8 +17,10 @@ export async function POST(request: Request) {
       const provider = userRecord.providerData[0].providerId;
       if (provider === 'google.com') {
         authMethod = 'google';
+      } else if (provider === 'password') {
+        authMethod = 'password';
       }
-    } else if (userRecord.emailVerified === false) {
+    } else {
       authMethod = 'anonymous';
     }
 

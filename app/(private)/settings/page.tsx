@@ -103,14 +103,14 @@ export default function SettingsPage() {
     fetchUserProfile();
   }, [user]);
 
-  // Add check for anonymous user
+  // Update check for anonymous user
   useEffect(() => {
     if (user) {
+      // Consider both cases - no providers or isAnonymous flag
+      const hasNoProvider = user.providerData.length === 0;
       const isAnon = user.isAnonymous;
-      const hasEmailProvider = user.providerData.some(
-        provider => provider.providerId === 'password' || provider.providerId === 'google.com'
-      );
-      setIsAnonymous(!hasEmailProvider && isAnon);
+      
+      setIsAnonymous(hasNoProvider || isAnon);
       setHasPassword(user.providerData.some(
         provider => provider.providerId === 'password'
       ));
@@ -281,41 +281,29 @@ export default function SettingsPage() {
     }
   };
 
-  // Function to convert anonymous account to email/password
+  // Add handler for setting password
   const handleSetPassword = async () => {
-    if (!user || !userProfile?.email || !password) {
-      toast.error("Email and password are required");
-      return;
-    }
+    if (!user?.email) return;
 
     try {
-      setIsSettingPassword(true);
+      const response = await fetch('/api/send-set-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user.email }),
+      });
 
-      // Create credential with email and password
-      const credential = EmailAuthProvider.credential(
-        userProfile.email,
-        password
-      );
-
-      // Link anonymous account with email/password
-      await linkWithCredential(user, credential);
-
-      // Update local state
-      setHasPassword(true);
-      setPassword("");
+      const result = await response.json();
       
-      toast.success("Password set successfully. You can now sign in with email and password.");
-    } catch (error: any) {
-      console.error("Error setting password:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        toast.error("This email is already associated with another account");
-      } else if (error.code === 'auth/weak-password') {
-        toast.error("Password should be at least 6 characters");
+      if (result.success) {
+        toast.success("We've sent you an email to set your password!");
       } else {
-        toast.error("Failed to set password. Please try again.");
+        toast.error(result.error || "Failed to send password reset email");
       }
-    } finally {
-      setIsSettingPassword(false);
+    } catch (error) {
+      console.error('Error sending set password email:', error);
+      toast.error("Something went wrong. Please try again.");
     }
   };
 
@@ -559,7 +547,7 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Security</h2>
             <div className="space-y-4">
               {isAnonymous ? (
-                // Anonymous user - show set password form
+                // Anonymous user - direct password set
                 <>
                   <div className="space-y-2">
                     <div>
@@ -579,14 +567,48 @@ export default function SettingsPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter a strong password"
+                        className="mb-2"
                       />
                     </div>
-                    <p className="text-sm text-muted-foreground text-gray-900 dark:text-white">
-                      Setting a password will allow you to sign in with email and password in addition to your current sign-in method.
-                    </p>
                     <Button 
-                      onClick={handleSetPassword}
-                      disabled={isSettingPassword || !password || !userProfile?.email}
+                      onClick={async () => {
+                        if (!user?.email || !password) return;
+                        
+                        try {
+                          setIsSettingPassword(true);
+                          
+                          // Create credential with email and new password
+                          const credential = EmailAuthProvider.credential(user.email, password);
+                          
+                          // Link the credential to the user
+                          await linkWithCredential(user, credential);
+                          
+                          // Update Firestore
+                          const userRef = doc(db, 'users', user.uid);
+                          await updateDoc(userRef, {
+                            isAnonymous: false
+                          });
+                          
+                          // Clear password field
+                          setPassword('');
+                          
+                          // Update local state
+                          setIsAnonymous(false);
+                          setHasPassword(true);
+                          
+                          toast.success('Password set successfully!');
+                        } catch (error: any) {
+                          console.error('Error setting password:', error);
+                          if (error.code === 'auth/weak-password') {
+                            toast.error('Password should be at least 6 characters');
+                          } else {
+                            toast.error('Failed to set password. Please try again.');
+                          }
+                        } finally {
+                          setIsSettingPassword(false);
+                        }
+                      }}
+                      disabled={isSettingPassword || !password || !user?.email}
                       className="w-full"
                     >
                       {isSettingPassword ? (

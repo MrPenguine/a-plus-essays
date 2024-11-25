@@ -19,26 +19,19 @@ export async function POST(request: Request) {
     // Get user by email
     const userRecord = await adminAuth.getUserByEmail(email);
 
-    // Only proceed if the user is anonymous
-    if (userRecord.providerData.length === 0) {
-      // Convert anonymous account to email/password
-      await adminAuth.updateUser(userRecord.uid, {
-        email: email,
-        emailVerified: false,
-        password: "$2y$10$0IUMmrbEXdBn.5Kri09djelbRNT3raydvpfseZ2C0EnWwjcQ.xq3.",
-        providerToLink: {
-          providerId: 'password',
-          email: email
-        }
-      });
+    // Check if user has password provider
+    const hasPasswordProvider = userRecord.providerData.some(
+      provider => provider.providerId === 'password'
+    );
 
-      // Update isAnonymous in users collection
+    if (!hasPasswordProvider) {
+      // Generate password reset link
+      const resetLink = await adminAuth.generatePasswordResetLink(email);
+
+      // Update user in Firestore to mark as non-anonymous
       await adminDb.collection('users').doc(userRecord.uid).update({
         isAnonymous: false
       });
-
-      // Generate password reset link
-      const resetLink = await adminAuth.generatePasswordResetLink(email);
 
       // Read email template
       const templatePath = join(process.cwd(), 'components', 'email_templates', 'set-password.html');
@@ -57,7 +50,7 @@ export async function POST(request: Request) {
       await transporter.sendMail({
         from: process.env.SMTP_FROM_EMAIL,
         to: email,
-        subject: 'Welcome to A+ Essays, your academic partner',
+        subject: 'Set Your Password - A+ Essays',
         html: emailTemplate,
       });
 
@@ -66,16 +59,37 @@ export async function POST(request: Request) {
         message: 'Set password email sent successfully'
       });
     } else {
-      // Instead of returning an error, indicate that the user should enter password
+      // User already has password provider, send regular reset
+      const resetLink = await adminAuth.generatePasswordResetLink(email);
+      
+      // Read email template
+      const templatePath = join(process.cwd(), 'components', 'email_templates', 'forgot-password.html');
+      let emailTemplate = readFileSync(templatePath, 'utf8');
+
+      // Replace the reset password link
+      emailTemplate = emailTemplate.replace(
+        'Reset password</a>',
+        `Reset password</a>`
+      ).replace(
+        '<a class="t28" href="https://tabular.email"',
+        `<a class="t28" href="${resetLink}"`
+      );
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM_EMAIL,
+        to: email,
+        subject: 'Reset Your Password - A+ Essays',
+        html: emailTemplate,
+      });
+
       return NextResponse.json({ 
         success: true,
-        showPassword: true,
-        message: 'User has password set'
+        message: 'Password reset email sent successfully'
       });
     }
 
   } catch (error: any) {
-    console.error('Error sending set password email:', error);
+    console.error('Error sending password email:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to send email' },
       { status: 500 }
